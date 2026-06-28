@@ -1,0 +1,35 @@
+# --- secrets ---
+.env
+*.env
+!.env.example
+
+# --- PHP / Laravel ---
+/backend/vendor/
+/backend/node_modules/
+/backend/storage/*.key
+/backend/storage/app/imports/*
+/backend/.env
+/backend/public/hot
+
+# --- Node / Vue ---
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.env
+
+# --- Python ---
+__pycache__/
+*.pyc
+/importer/.venv/
+/importer/venv/
+
+# --- DB / uploads (local, never commit data) ---
+*.sqlite
+*.db
+/uploads/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
