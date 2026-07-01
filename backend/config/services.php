@@ -31,8 +31,8 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'python' => [
-        'path' => env('PYTHON_PATH', 'python'),
+    'python_service' => [
+        'url' => env('PYTHON_SERVICE_URL', 'http://localhost:8001'),
     ],
 
 ];

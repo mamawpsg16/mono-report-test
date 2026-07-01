@@ -19,8 +19,9 @@
 # --- Python ---
 __pycache__/
 *.pyc
-/importer/.venv/
-/importer/venv/
+*.pyo
+/python-service/.venv/
+/python-service/venv/
 
 # --- DB / uploads (local, never commit data) ---
 *.sqlite

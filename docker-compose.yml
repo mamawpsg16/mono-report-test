@@ -20,40 +20,51 @@ services:
       timeout: 3s
       retries: 5
 
+  # --- Python FastAPI import service ---
+  python-service:
+    build: ./python-service
+    ports:
+      - "${PYTHON_SERVICE_PORT:-8001}:8001"
+    env_file: .env
+    environment:
+      BACKEND_STORAGE_PATH: /var/www/html/storage/app
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/storage/app:/var/www/html/storage/app:ro
+      - ./python-service:/app
+
   # --- Laravel API (built in Phase 0) ---
   backend:
     build: ./backend
     ports:
       - "${APP_PORT:-8000}:8000"
     env_file: .env
+    environment:
+      PYTHON_SERVICE_URL: http://python-service:8001
     depends_on:
       db:
         condition: service_healthy
+      python-service:
+        condition: service_started
     volumes:
       - ./backend:/var/www/html
-      - uploads:/var/www/html/storage/app/imports
+      - /var/www/html/vendor
 
   # --- Vue SPA dev server (built in Phase 0) ---
   frontend:
     build: ./frontend
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      # Browser-side base URL for the API. Must point at the host-published
+      # backend port (APP_PORT), not the in-container 8000.
+      VITE_API_URL: http://localhost:${APP_PORT:-8000}
     depends_on:
       - backend
     volumes:
       - ./frontend/src:/app/src
 
-  # --- Python importer: separate worker that polls Postgres for pending jobs ---
-  importer:
-    build: ./importer
-    env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./importer:/home/worker/app
-      - uploads:/data/imports
-
 volumes:
   pgdata:
-  uploads:

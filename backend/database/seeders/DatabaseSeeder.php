@@ -8,10 +8,14 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        \App\Models\User::factory()->create([
-            'name' => 'Admin',
-            'email' => 'admin@dataforge.test',
-            'password' => 'password',
-        ]);
+        // updateOrCreate (no factory) so seeding is idempotent and works in the
+        // --no-dev production image, which strips Faker.
+        \App\Models\User::updateOrCreate(
+            ['email' => 'admin@dataforge.test'],
+            [
+                'name' => 'Admin',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            ]
+        );
     }
 }

@@ -24,10 +24,10 @@ COPY . .
 # Now finish autoload (needs the full source tree)
 RUN composer dump-autoload --optimize
 
-# Make storage writable (Laravel writes logs, cache, sessions here)
-RUN chmod -R 775 storage bootstrap/cache
+# Make storage writable (Laravel writes logs/cache/sessions) and boot script executable
+RUN chmod -R 775 storage bootstrap/cache && chmod +x docker-entrypoint.sh
 
 EXPOSE 8000
 
-# Run the built-in dev server. Fine for local dev — NOT for production.
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Migrate/seed on boot, then run built-in dev server. Fine for local dev — NOT for production.
+ENTRYPOINT ["sh", "docker-entrypoint.sh"]

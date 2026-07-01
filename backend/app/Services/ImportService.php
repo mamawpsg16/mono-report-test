@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\Import;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use Symfony\Component\Process\Process;
 
 class ImportService
 {
@@ -15,7 +15,7 @@ class ImportService
     {
         $extension = $this->resolveExtension($file);
         $storedPath = $this->storeFile($file, $extension);
-
+        
         $import = Import::create([
             'type' => $extension,
             'original_filename' => $file->getClientOriginalName(),
@@ -42,52 +42,31 @@ class ImportService
 
     private function checkConflicts(Import $import): array
     {
-        $csvPath = storage_path('app/' . $import->stored_path);
-        $scriptPath = base_path('scripts/check_conflicts.py');
+        $response = Http::baseUrl(config('services.python_service.url'))
+            ->timeout(120)
+            ->get("/imports/{$import->id}/conflicts");
 
-        $result = $this->runPython($scriptPath, [
-            $csvPath,
-            $import->type,
-        ]);
+        if ($response->failed()) {
+            return ['error' => 'Failed to check conflicts — python-service returned ' . $response->status()];
+        }
 
-        return $result ?? ['error' => 'Failed to check conflicts — Python script returned no output'];
+        return $response->json() ?? ['error' => 'Failed to check conflicts — python-service returned no output'];
     }
 
     private function processWithPython(Import $import): void
     {
-        $csvPath = storage_path('app/' . $import->stored_path);
-        $scriptPath = base_path('scripts/run_import.py');
+        $response = Http::baseUrl(config('services.python_service.url'))
+            ->timeout(120)
+            ->post("/imports/{$import->id}/process");
 
-        $result = $this->runPython($scriptPath, [
-            $csvPath,
-            (string) $import->id,
-        ]);
+        $result = $response->failed() ? null : $response->json();
 
-        if ($result && isset($result['error']) && $result['error']) {
+        if (!$result || ($result['error'] ?? null)) {
             $import->update([
                 'status' => 'failed',
-                'error_message' => $result['error'],
+                'error_message' => $result['error'] ?? "python-service returned {$response->status()}",
             ]);
         }
-    }
-
-    private function runPython(string $scriptPath, array $extraArgs): ?array
-    {
-        $python = config('services.python.path', 'python');
-
-        $args = array_merge([$python, $scriptPath], $extraArgs, [
-            config('database.connections.pgsql.host'),
-            (string) config('database.connections.pgsql.port'),
-            config('database.connections.pgsql.database'),
-            config('database.connections.pgsql.username'),
-            config('database.connections.pgsql.password'),
-        ]);
-
-        $process = new Process($args);
-        $process->setTimeout(120);
-        $process->run();
-
-        return json_decode($process->getOutput(), true);
     }
 
     public function findOrFail(int $id): Import
