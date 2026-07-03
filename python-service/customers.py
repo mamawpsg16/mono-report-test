@@ -9,18 +9,24 @@ def _clean(value):
     return value or None
 
 
-def compute_conflicts(rows):
-    """Compare incoming rows against existing customers, before writing anything."""
+def compute_diff(rows, errors=None):
+    """Diff incoming rows against existing customers. Returns summary + tagged rows list."""
 
-    # identity = (customer_code, year) pair, matches DB unique constraint
+    if errors is None:
+        errors = []
+
     pairs = [(row.get("customer_code", "").strip(), int(row["year"])) for row in rows]
 
     if not pairs:
-        return {"new_rows": 0, "update_rows": 0, "updates": []}
+        return {
+            "summary": {"total_rows": 0, "new_count": 0, "update_count": 0, "error_count": len(errors)},
+            "rows": [],
+            "errors": errors,
+        }
 
-    # one batched query instead of N queries (100k rows -> 1 round-trip, not 100k)
+    # one batched query instead of N queries
     placeholders = ",".join(["(%s, %s)"] * len(pairs))
-    flat_params = [v for pair in pairs for v in pair]   # flatten [(a,1),(b,2)] -> [a,1,b,2]
+    flat_params = [v for pair in pairs for v in pair]
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -29,41 +35,43 @@ def compute_conflicts(rows):
                 f"FROM customers WHERE (customer_code, year) IN ({placeholders})",
                 flat_params,
             )
-            # dict keyed by (code, year) -> O(1) lookup per row below, instead of scanning a list
             existing = {(r["customer_code"], r["year"]): r for r in cur.fetchall()}
 
-    updates = []
+    tagged_rows = []
     new_count = 0
+    update_count = 0
 
     for index, row in enumerate(rows):
-        line = index + 2   # +2: header is csv line 1, data starts line 2
         code = row.get("customer_code", "").strip()
         year = int(row["year"])
         current = existing.get((code, year))
 
         if current is None:
-            new_count += 1   # no match in DB -> this row is a brand-new customer
-            continue
+            new_count += 1
+            tagged_rows.append({**row, "_status": "new"})
+        else:
+            update_count += 1
+            changes = {}
+            for field in COMPARE_FIELDS:
+                old_val = current.get(field) or ""
+                new_val = _clean(row.get(field)) or ""
+                if old_val != new_val:
+                    changes[field] = {"from": old_val, "to": new_val}
+            tagged_rows.append({**row, "_status": "update", "_changes": changes})
 
-        # row exists -> diff field by field, only record what actually changed
-        changes = {}
-        for field in COMPARE_FIELDS:
-            old_val = current.get(field) or ""
-            new_val = _clean(row.get(field)) or ""
-            if old_val != new_val:
-                changes[field] = {"from": old_val, "to": new_val}
-
-        updates.append({
-            "row": line,
-            "customer_code": code,
-            "year": year,
-            "changes": changes,
-        })
-
-    return {"new_rows": new_count, "update_rows": len(updates), "updates": updates}
+    return {
+        "summary": {
+            "total_rows": len(rows),
+            "new_count": new_count,
+            "update_count": update_count,
+            "error_count": len(errors),
+        },
+        "rows": tagged_rows,
+        "errors": errors,
+    }
 
 
-def upsert_customers(import_id, rows):
+def upsert_customers(rows, original_filename, user_id=None):
     """Write every row into customers. New (code, year) -> INSERT. Existing -> UPDATE."""
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -71,11 +79,12 @@ def upsert_customers(import_id, rows):
                 cur.execute(
                     """
                     INSERT INTO customers
-                        (import_id, customer_code, year, name, email, phone, address, city, country, created_at, updated_at)
+                        (original_filename, customer_code, year, name, email, phone, address, city, country,
+                         created_by, updated_by, created_at, updated_at)
                     VALUES
-                        (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                        (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                     ON CONFLICT (customer_code, year) DO UPDATE SET
-                        import_id = EXCLUDED.import_id,
+                        original_filename = EXCLUDED.original_filename,
                         name = EXCLUDED.name,
                         email = EXCLUDED.email,
                         phone = EXCLUDED.phone,
@@ -83,10 +92,11 @@ def upsert_customers(import_id, rows):
                         city = EXCLUDED.city,
                         country = EXCLUDED.country,
                         is_active = true,
+                        updated_by = EXCLUDED.updated_by,
                         updated_at = NOW()
                     """,
                     (
-                        import_id,
+                        original_filename,
                         row.get("customer_code", "").strip(),
                         int(row["year"]),
                         row.get("name", "").strip(),
@@ -95,28 +105,8 @@ def upsert_customers(import_id, rows):
                         _clean(row.get("address")),
                         _clean(row.get("city")),
                         _clean(row.get("country")),
+                        user_id,
+                        user_id,
                     ),
                 )
         conn.commit()   # one commit after all rows -> all-or-nothing per request
-
-
-def mark_done(import_id, total_rows):
-    """Flip imports.status to done, record row counts."""
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE imports SET status = 'done', total_rows = %s, processed_rows = %s WHERE id = %s",
-                (total_rows, total_rows, import_id),
-            )
-        conn.commit()
-
-
-def mark_failed(import_id, message):
-    """Flip imports.status to failed, store why (first N errors, joined)."""
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE imports SET status = 'failed', error_message = %s WHERE id = %s",
-                (message, import_id),
-            )
-        conn.commit()
