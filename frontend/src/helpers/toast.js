@@ -21,7 +21,7 @@ export function alertErrors(title, errors) {
     icon: 'error',
     title,
     html: `<ul style="text-align:left;font-size:0.9rem;max-height:300px;overflow-y:auto;padding-left:1.2rem">${errors.map((e) => `<li>${e}</li>`).join('')}</ul>`,
-    confirmButtonColor: '#4f46e5',
+    confirmButtonColor: '#1d4ed8',
   })
 }
 
@@ -30,6 +30,6 @@ export function alertSuccess(title, message) {
     icon: 'success',
     title,
     text: message,
-    confirmButtonColor: '#4f46e5',
+    confirmButtonColor: '#1d4ed8',
   })
 }

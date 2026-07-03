@@ -55,7 +55,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuth } from '../composables/useAuth'
+import { useAuth } from '../../composables/useAuth'
 
 const router = useRouter()
 const auth = useAuth()
@@ -90,14 +90,14 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f2f3f8;
+  background: var(--color-bg);
   padding: 20px;
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 16px;
   padding: 40px 36px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06);
@@ -111,7 +111,7 @@ async function handleLogin() {
 .login-header .brand-icon {
   width: 40px;
   height: 40px;
-  background: #4f46e5;
+  background: var(--color-accent);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -122,14 +122,14 @@ async function handleLogin() {
 .login-title {
   font-size: 20px;
   font-weight: 700;
-  color: #1e1b4b;
+  color: var(--color-ink);
   margin: 0 0 6px;
   letter-spacing: -0.3px;
 }
 
 .login-subtitle {
   font-size: 14px;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -140,9 +140,9 @@ async function handleLogin() {
 }
 
 .login-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
   font-size: 13px;
   padding: 10px 14px;
   border-radius: 8px;
@@ -157,23 +157,23 @@ async function handleLogin() {
 .form-group label {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text);
 }
 
 .form-group input {
   padding: 10px 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
-  color: #1e1b4b;
+  color: var(--color-ink);
   outline: none;
   transition: border-color 0.15s;
 }
 
 .form-group input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.1);
 }
 
 .form-group input:disabled {
@@ -182,12 +182,12 @@ async function handleLogin() {
 }
 
 .form-group input::placeholder {
-  color: #c4c7cc;
+  color: var(--color-text-faint);
 }
 
 .btn-login {
   padding: 11px 20px;
-  background: #4f46e5;
+  background: var(--color-accent);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -203,7 +203,7 @@ async function handleLogin() {
 }
 
 .btn-login:hover:not(:disabled) {
-  background: #4338ca;
+  background: var(--color-accent-hover);
 }
 
 .btn-login:disabled {

@@ -1,19 +1,35 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+const LoginView = () => import('@/views/authentication/LoginView.vue')
+const AppLayout = () => import('@/layouts/AppLayout.vue')
+const CustomersIndex = () => import('@/views/customers/Index.vue')
+const NotFound = () => import('@/views/authentication/NotFound.vue')
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/login',
       name: 'login',
-      component: () => import('../views/LoginView.vue'),
+      component: LoginView,
       meta: { guest: true },
     },
     {
       path: '/',
-      name: 'home',
-      component: () => import('../views/HomeView.vue'),
+      component: AppLayout,
       meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'home',
+          component: CustomersIndex,
+          meta: { title: 'Customers' },
+        },
+        { 
+          path: '/:pathMatch(.*)*',
+          name: 'not-found',
+          component: NotFound 
+        }
+      ],
     },
   ],
 })

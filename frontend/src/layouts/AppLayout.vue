@@ -1,7 +1,9 @@
 <template>
-  <div>
-    <nav class="top-nav">
-      <div class="nav-brand">
+  <div class="app-shell">
+    <div v-if="isMobile && sidebarOpen" class="sidebar-backdrop" @click="sidebarOpen = false"></div>
+
+    <aside class="sidebar" :class="{ 'is-open': sidebarOpen }">
+      <div class="sidebar-brand">
         <div class="brand-icon">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <path d="M7.5 11.5V3.5M4 7l3.5-3.5L11 7" stroke="#fff" stroke-width="1.8"
@@ -10,12 +12,20 @@
         </div>
         <span class="brand-name">DataForge</span>
       </div>
-      <div class="nav-links">
-        <span class="nav-link active">Import</span>
-        <span class="nav-link">Records</span>
-        <span class="nav-link">Reports</span>
-      </div>
-      <div class="nav-right">
+      <nav class="sidebar-nav">
+        <router-link to="/" class="nav-link" exact-active-class="active">
+          Customers
+        </router-link>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <div class="topbar">
+        <button v-if="isMobile" class="menu-toggle" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle menu">
+          <Menu :size="18" :stroke-width="2" />
+        </button>
+        <h1 class="page-title">{{ route.meta.title }}</h1>
+        <span class="topbar-spacer"></span>
         <div class="status-dot"></div>
         <div class="avatar-wrapper" ref="avatarWrapper">
           <div class="avatar" @click="showDropdown = !showDropdown">
@@ -47,26 +57,34 @@
           </Transition>
         </div>
       </div>
-    </nav>
 
-    <div class="page-body">
-      <FileUpload />
+      <div class="page-body">
+        <router-view />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuth } from '../composables/useAuth'
-import FileUpload from '../components/FileUpload.vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { Menu } from '@lucide/vue'
+import { useAuth } from '@/composables/useAuth'
+import { useIsMobile } from '@/composables/useIsMobile'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuth()
+const isMobile = useIsMobile()
 
 const showDropdown = ref(false)
 const loggingOut = ref(false)
 const avatarWrapper = ref(null)
+const sidebarOpen = ref(false)
+
+watch(isMobile, (mobile) => {
+  if (!mobile) sidebarOpen.value = false
+})
 
 const userInitials = computed(() => {
   if (!auth.user.value?.name) return '?'
@@ -99,78 +117,149 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 </script>
 
 <style scoped>
-.top-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e8eaf0;
+.app-shell {
   display: flex;
-  align-items: center;
-  padding: 0 28px;
-  z-index: 100;
+  height: 100vh;
+  overflow: hidden;
 }
 
-.nav-brand {
+.sidebar {
+  width: 232px;
+  min-width: 232px;
+  background: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 250;
+}
+
+.menu-toggle {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-text);
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.menu-toggle:hover {
+  background: var(--color-surface-hover);
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+}
+
+.sidebar-brand {
+  height: 52px;
+  min-height: 52px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 9px;
-  flex-shrink: 0;
-  margin-right: 28px;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .brand-icon {
   width: 30px;
   height: 30px;
-  background: #4f46e5;
+  background: var(--color-accent);
   border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .brand-name {
   font-weight: 700;
-  font-size: 15px;
-  color: #1e1b4b;
+  font-size: 17px;
+  color: #fff;
   letter-spacing: -0.3px;
 }
 
-.nav-links {
+.sidebar-nav {
+  padding: 16px 12px;
   display: flex;
-  align-items: center;
-  gap: 1px;
-  flex: 1;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .nav-link {
-  padding: 5px 14px;
+  padding: 10px 12px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 500;
-  color: #9ca3af;
-  cursor: default;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
 }
 
 .nav-link.active {
   font-weight: 600;
-  color: #4f46e5;
-  background: #eef2ff;
+  color: #fff;
+  background: rgba(var(--color-accent-rgb), 0.35);
 }
 
-.nav-right {
+.main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 52px;
+  min-height: 52px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 0 28px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.page-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+
+.topbar-spacer {
+  flex: 1;
 }
 
 .status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--color-success);
 }
 
 .avatar-wrapper {
@@ -181,7 +270,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #818cf8, #4f46e5);
+  background: var(--color-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,10 +290,10 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   top: calc(100% + 8px);
   right: 0;
   width: 220px;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e8eaf0;
+  border: 1px solid var(--color-border);
   overflow: hidden;
   z-index: 200;
 }
@@ -216,18 +305,18 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .dropdown-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1e1b4b;
+  color: var(--color-ink);
 }
 
 .dropdown-email {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 .dropdown-divider {
   height: 1px;
-  background: #e8eaf0;
+  background: var(--color-border);
 }
 
 .dropdown-logout {
@@ -241,25 +330,25 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
-  color: #dc2626;
+  color: var(--color-danger);
   cursor: pointer;
   transition: background 0.12s;
 }
 
 .dropdown-logout:hover:not(:disabled) {
-  background: #fef2f2;
+  background: var(--color-danger-soft);
 }
 
 .dropdown-logout:disabled {
-  color: #9ca3af;
+  color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
 .logout-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #9ca3af;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-text-muted);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -280,8 +369,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 }
 
 .page-body {
-  padding-top: 56px;
-  min-height: 100vh;
-  background: #f2f3f8;
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-bg);
 }
 </style>
