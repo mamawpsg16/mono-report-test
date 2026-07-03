@@ -7,7 +7,7 @@
 /backend/vendor/
 /backend/node_modules/
 /backend/storage/*.key
-/backend/storage/app/imports/*
+/backend/storage/app/uploads/*
 /backend/.env
 /backend/public/hot
 

@@ -1,105 +1,132 @@
 # dataforge — build plan & decisions
 
-> Handoff doc. Open this project in VSCode and continue from here. This captures every
-> decision made so far so a fresh Claude Code session (or you) can pick up cold.
+> Handoff doc. Open this project in VSCode and continue from here. Captures the
+> real, as-built architecture so a fresh Claude Code session (or you) can pick up
+> cold. Rewritten 2026-07-02 to match what actually shipped (the earlier draft
+> described a poll-worker design that was abandoned).
 
 ## What this is
 
-A **multi-type data-ingestion app**, built as a learning project. User is learning by
-doing — **explain concepts, keep teaching comments in code, go one phase at a time and
-STOP for review** before the next. User asks lots of "why" — answer before writing code.
+A **data-ingestion app**, built as a learning project. User is learning by doing —
+**explain concepts, keep teaching comments in code, go one phase at a time and STOP
+for review** before the next. User asks lots of "why" — answer before writing code.
 
-Core flow: user uploads a file in the Vue UI → Laravel stores it + records a job →
-a **separate Python worker** processes it → results land in Postgres → UI shows status.
+Core flow: user logs in → uploads a customer CSV in the Vue UI → Laravel stores it
+and asks the Python service to **validate + diff** it → UI shows a preview
+(new / update / error rows) → user confirms → Python **upserts** the rows into
+Postgres → UI lists them.
 
-**CSV import is the first feature** (real use case: customer CSVs, up to ~100k rows).
-Later input types (OCR on uploaded images via Tesseract, etc.) reuse the same worker
-pattern — designed for it now, **not built yet**.
+**CSV customer import is the built feature.** See "Next" for where this goes.
 
 ## Locked decisions
 
-- **Decoupled, Dockerized monorepo.** Runs on any machine via `docker compose up`.
-- **Backend:** Laravel 10 (chosen over 11 because host PHP is 8.1; Docker image uses PHP 8.2).
-  **API-only** — does not render HTML.
+- **Decoupled, Dockerized monorepo.** Runs via `docker compose up`. Services:
+  `db` (Postgres), `python-service` (FastAPI), `backend` (Laravel), `frontend` (Vue).
+- **Backend:** Laravel 10 (host PHP is 8.1; Docker image uses PHP 8.2). **API-only** —
+  does not render HTML.
 - **Frontend:** Vue 3 + Vite **standalone SPA** (separate from backend, not Inertia).
-- **Importer:** **plain Python** (no Django/FastAPI) — a **worker** in its own container.
-- **Database:** **PostgreSQL 16**, shared by Laravel and Python.
-- **Integration = shared DB, not subprocess.** Docker containers can't subprocess each
-  other, so Laravel writes a job row; the Python worker **polls** Postgres for pending
-  jobs, processes, writes results, updates status. Classic worker/job-queue pattern.
-- **DB writes:** Python writes result rows **directly**. Laravel owns the **schema**
-  (migrations) = single source of truth for structure.
-- **Parse libs:** **pandas** (csv + xlsx, one API) + **openpyxl** (pandas's xlsx engine —
-  this is the "pyfile" lib the user's workmate uses). `psycopg2` to reach Postgres.
-  > CONFIRM: user picked "Other" for parse lib once — verify pandas is fine, or swap to
-  > the exact lib their workmate named.
-- **Auth:** **login coming in a later phase** (Laravel Sanctum). Early phases are open;
-  add auth + ownership checks before any real deploy. See `docs/security/03-...md`.
-
-## Scale note (drives Phase 4 design)
-
-CSVs can be ~100k rows. So the worker must:
-- **chunked read** — `pd.read_csv(path, chunksize=5000)`, never slurp all rows into RAM;
-- **bulk insert** — Postgres `COPY` (psycopg2 `copy_expert`) or batched inserts, not
-  row-by-row;
-- **progress** — update `imports.processed_rows` per chunk so the UI shows a live count;
-- **per-row errors** — collect bad rows, don't let one kill the job.
+  Vue Router with an `AppLayout` (auth-guarded) and a `LoginView`.
+- **Data service:** **FastAPI `python-service`** (not a plain-Python worker). Does all
+  file parsing, validation, diffing, and DB writes.
+- **Database:** **PostgreSQL 16**, shared. Laravel owns the **schema** (migrations) =
+  single source of truth for structure; Python writes customer rows directly.
+- **Integration = synchronous HTTP, not a job queue.** Docker containers can't
+  subprocess each other, so Laravel calls the Python service over the compose network
+  (`PYTHON_SERVICE_URL=http://python-service:8001`, read via
+  `config('services.python_service.url')`). Request/response, no `imports` job table,
+  no polling, no async status.
+- **Parse/DB libs:** Python stdlib **`csv`** (utf-8-sig, strips Excel BOM) +
+  **`psycopg` (v3)**. Not pandas/openpyxl/psycopg2 — see "Known limitations".
+- **Auth: DONE.** Laravel **Sanctum SPA session** auth (cookie + CSRF, not tokens).
+  All `/api/customers*` routes sit behind `auth:sanctum`. Details in
+  `docs/auth-sanctum-session.md`.
 
 ## Architecture
 
 ```
 Browser (Vue SPA :5173)
-  → POST /api/imports         Laravel: validate + store file, INSERT imports(status=pending)
-                              ─────────────────────────────────────────────►  Postgres :5432
-Python importer (own container)
-  → poll Postgres for status=pending
-  → pandas chunked read → validate → COPY rows in → update status=done/failed + counts
-Browser (Vue)
-  → poll GET /api/imports/{id} until done/failed
+  → POST /api/customers/preview   (multipart file, Sanctum session cookie)
+       Laravel CustomerService: store file to storage/app/uploads/<uuid>.<ext>
+         → HTTP POST python-service /customers/validate  ──────────►  python-service :8001
+              read CSV → validate rows → diff vs existing customers      → reads Postgres :5432
+         ← { summary, rows, errors }   (on errors: delete file, HTTP 422)
+  ← preview shown in UI (new / update / error counts + tagged rows)
+
+  → POST /api/customers/confirm   { stored_path, original_filename }
+       Laravel CustomerService
+         → HTTP POST python-service /customers/process
+              read CSV → validate → upsert rows (INSERT ... ON CONFLICT)  → writes Postgres
+         ← { status, processed_rows, errors }
+       Laravel deletes the stored file afterward
+  ← UI refreshes the customers list
+
+  → GET /api/customers?page&per_page&search
+       Laravel: paginate customers (ilike search across fields) + creator/updater
 ```
 
-## Build phases (one at a time, STOP for review between each)
+## Data model
 
-- **Phase 0 — scaffold + Docker.** `composer create-project laravel/laravel:^10 backend`;
-  `npm create vite@latest frontend -- --template vue`; Dockerfiles for backend/frontend/
-  importer; `docker compose up` boots Postgres + all three. Verify each service starts.
-- **Phase 1 — DB schema (migrations).** `imports` table: id, type ('csv' now, room for
-  'ocr_image' later), original_filename, stored_path, status (pending/processing/done/
-  failed), total_rows, processed_rows, error_message, timestamps. Target table, e.g.
-  `customers`. Teach: why Laravel owns schema even though Python writes.
-- **Phase 2 — upload endpoint (Laravel).** `POST /api/imports`: validate (extension +
-  real MIME + size), store to `storage/app/imports` (random name, outside webroot),
-  INSERT imports row, return id. `GET /api/imports/{id}` for status. See `docs/security/02`.
-- **Phase 3 — Vue upload UI.** File input → axios `FormData` POST → poll status every ~2s.
-  Teach: FormData vs JSON, why polling (async worker).
-- **Phase 4 — Python worker (core lesson).** `importer/worker.py` poll loop + `parse_csv.py`:
-  pandas chunked read, validate, `COPY` into Postgres, update counts/status. Plain Python.
-  `requirements.txt`: pandas, openpyxl, psycopg2-binary. Run as **non-root** in container.
-- **Phase 5 — wire importer ↔ Postgres end to end.** Confirm Laravel-written job is picked
-  up, processed, status flips, rows land. Handle failures (mark failed + store error).
-- **Phase 6 — polish.** Per-row error report to UI; edge cases (empty file, wrong columns,
-  duplicates, zip-bomb/oversize guard); delete/quarantine source file after import (PII).
+`customers` (Laravel migration owns this):
 
-## Later (designed for, not built)
+| column | notes |
+| --- | --- |
+| `id` | pk |
+| `original_filename` | source file the row came from |
+| `customer_code` | part of natural key |
+| `year` | unsigned smallint, part of natural key |
+| `name` | required |
+| `email` `phone` `address` `city` `country` | nullable |
+| `is_active` | bool, default true; indexed |
+| `created_by` `updated_by` | nullable FK → `users` |
+| `timestamps` | |
 
-- **OCR input type:** images → `pytesseract` + `Pillow`, Tesseract binary in importer image.
-  Same `imports` row with `type='ocr_image'`; worker dispatches by type. Security:
-  decompression bombs, Pillow CVEs, MIME spoofing — see `docs/security/02`.
-- **Auth/login:** Sanctum + ownership checks (`docs/security/03`).
+- **Unique** `(customer_code, year)` — this is the natural key.
+- **Diff rule** (`python-service/customers.py::compute_diff`): incoming rows are
+  matched on `(customer_code, year)`. Existing pair whose compared fields differ =
+  **update**; unseen pair = **new**. `upsert_customers` writes via
+  `INSERT ... ON CONFLICT (customer_code, year) DO UPDATE`.
 
-## Security docs (one file per topic, in `docs/security/`)
+## What's built
 
-Done: `00-overview`, `01-owasp-top-10`, `02-file-upload-security`.
-TODO: `03-authentication-authorization` (login phase), `04-database-security`,
-`05-docker-security`, `06-secrets-management`, `07-dependency-security`.
+- **Compose stack**: `db` + `python-service` + `backend` + `frontend`, one
+  `docker compose up --build`.
+- **Auth**: Sanctum SPA session — `/login`, `/logout`, `auth:sanctum` guard; Vue
+  router guard + `useAuth` composable + `LoginView`.
+- **Upload (preview → confirm)**: `CustomerController` + `CustomerService` (Laravel),
+  `python-service` `/customers/validate` + `/customers/process`, Vue
+  `views/customers/components/FileUpload.vue` in an upload modal.
+- **Customers list UI**: `views/customers/Index.vue` — searchable, paginated table,
+  fixed columns (desktop) with responsive fallback on mobile. Shared components:
+  `AppDataTable`, `AppPagination`, `AppSelect`, `AppSearchInput`, `AppModal`;
+  composables `usePagination`, `useIsMobile`.
 
-## Tooling on host (checked 2026-06-27)
+## Known limitations / upload roadmap
 
-PHP 8.1.10 · Composer 2.5.8 · Node 20.17 · npm 9.9 · Python 3.11.5 · MySQL not installed.
-(Docker makes host versions mostly irrelevant — images pin their own.)
+Record now, revisit when we harden the upload feature:
 
-## Verification (end to end, after Phase 5)
+- **In-memory + row-by-row.** `reader.py` loads the whole CSV into a list;
+  `upsert_customers` loops row-by-row with one commit per request. Fine for small
+  files; revisit chunked reads + batched inserts / `COPY` before large uploads.
+- **CSV only.** `reader.py` implements `read_csv` only, but Laravel's
+  `CustomerService` accepts `xlsx` too — an `.xlsx` upload would reach the service
+  and fail. Either add xlsx parsing or tighten the Laravel allow-list.
+- **Debug output.** `reader.py` `print()`s every row/header — remove before scale.
+- **Port drift.** `docs/auth-sanctum-session.md` references :8009/:8010; compose uses
+  :8000 (backend) / :8001 (python-service) / :5173 (frontend). Reconcile the doc.
 
-`docker compose up --build` → open Vue UI → upload a small `.csv` (3–5 rows) → watch
-status pending→processing→done → `SELECT * FROM customers;` shows rows, counts match →
-upload a malformed file → status=failed with error shown.
+## Next (after the upload feature is solid)
+
+Finish/polish uploads first (limitations above). Then the learning track pivots to
+**AI development** — the user's goal is to become an **AI developer** (RAG / LLM app
+work). `docs/learning/journal.md` accumulates concepts in the user's own words as we
+go; that log is a natural first corpus to build a RAG experiment on top of.
+
+(The earlier draft's OCR/Tesseract input type is dropped — not pursuing it.)
+
+## Verification (end to end)
+
+`docker compose up --build` → open the Vue UI → **log in** → upload a small `.csv`
+(3–5 rows) → preview shows new/update/error counts and tagged rows → **confirm** →
+`SELECT * FROM customers;` shows the rows, list + search in the UI reflect them →
+upload a malformed file → preview returns HTTP 422 with per-row errors, nothing
+written.
