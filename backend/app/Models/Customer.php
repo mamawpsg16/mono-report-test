@@ -10,7 +10,7 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'import_id',
+        'original_filename',
         'customer_code',
         'year',
         'name',
@@ -20,6 +20,8 @@ class Customer extends Model
         'city',
         'country',
         'is_active',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
@@ -46,8 +48,13 @@ class Customer extends Model
         return $this->update(['is_active' => true]);
     }
 
-    public function import()
+    public function creator()
     {
-        return $this->belongsTo(Import::class);
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

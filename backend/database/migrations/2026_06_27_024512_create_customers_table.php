@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('customers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('import_id')->constrained('imports');
+            $table->string('original_filename');
             $table->string('customer_code');
             $table->unsignedSmallInteger('year');
             $table->string('name');
@@ -23,6 +23,8 @@ return new class extends Migration
             $table->string('city')->nullable();
             $table->string('country')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->foreignId('created_by')->nullable()->constrained('users');
+            $table->foreignId('updated_by')->nullable()->constrained('users');
             $table->timestamps();
 
             $table->unique(['customer_code', 'year']);

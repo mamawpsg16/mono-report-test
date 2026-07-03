@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\ImportController;
+use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -14,11 +14,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
 
-    Route::prefix('imports')->group(function () {
-        Route::get('/', [ImportController::class, 'index']);
-        Route::post('/', [ImportController::class, 'store']);
-        Route::post('/preview', [ImportController::class, 'preview']);
-        Route::post('/{id}/confirm', [ImportController::class, 'confirm']);
-        Route::get('/{id}', [ImportController::class, 'show']);
-    });
+    Route::get('/customers', [CustomerController::class, 'index']);
+    Route::post('/customers/preview', [CustomerController::class, 'preview']);
+    Route::post('/customers/confirm', [CustomerController::class, 'confirm']);
 });

@@ -21,11 +21,14 @@ RUN composer install --no-dev --no-scripts --no-autoloader
 # Copy the rest of the app
 COPY . .
 
-# Now finish autoload (needs the full source tree)
-RUN composer dump-autoload --optimize
-
-# Make storage writable (Laravel writes logs/cache/sessions) and boot script executable
-RUN chmod -R 775 storage bootstrap/cache && chmod +x docker-entrypoint.sh
+# bootstrap/cache is excluded by .dockerignore (local cache artifacts shouldn't
+# ship in the image) but composer needs the directory to exist to write into.
+# Finish autoload (needs the full source tree), then make storage writable
+# (Laravel writes logs/cache/sessions) and the boot script executable.
+RUN mkdir -p bootstrap/cache \
+    && composer dump-autoload --optimize \
+    && chmod -R 775 storage bootstrap/cache \
+    && chmod +x docker-entrypoint.sh
 
 EXPOSE 8000
 
