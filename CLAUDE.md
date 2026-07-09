@@ -30,15 +30,16 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   guard), the customer upload flow (preview → confirm) end to end, and the
   Customers list UI (searchable/paginated table, fixed columns, responsive
   mobile behavior).
-- Current milestone: **finish/polish the upload feature** — mostly done.
-  Debug prints removed, xlsx parsing added (magic-byte dispatch), and the
-  port-drift doc reconciled. Remaining: in-memory + row-by-row upsert and
-  xlsx hardening (both fine for small files — see PLAN.md "Known limitations"
-  and `docs/backlog.md`). Most of the UI polish this session predates the
-  mentor kit, so it hasn't been run past the rules above yet.
-- Next after uploads: pivot the learning track to **AI development
-  (RAG / LLM app work)** — that's the goal. `docs/learning/journal.md`
-  becomes a natural first RAG corpus.
+- The AI-dev pivot happened: RAG Q&A over `customers` data shipped
+  (fastembed + pgvector + Groq, hand-built). Upload feature is stable —
+  remaining upload items (in-memory + row-by-row upsert) are backlog-level,
+  not blocking.
+- Current milestone: **R0 close-out** — see PLAN.md "Roadmap: R0–R4" for the
+  full phase plan (R1 RBAC → R2 identity/invitations → R3 rewards →
+  R4 mobile, in that fixed order). R0 itself: commit RAG feature (done),
+  pin deps (done), roadmap into PLAN.md (done), ADR for the RAG stack
+  (open), delete `sample-data/bomb.xlsx` (open).
+- Next after R0: **R1 — RBAC foundation** (spatie/laravel-permission).
 - Default mode: GUIDE
 - Open questions:
   - `chatgpt_plan.md` at repo root is a **superseded** earlier architecture

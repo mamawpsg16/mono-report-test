@@ -16,7 +16,8 @@ and asks the Python service to **validate + diff** it → UI shows a preview
 (new / update / error rows) → user confirms → Python **upserts** the rows into
 Postgres → UI lists them.
 
-**CSV customer import is the built feature.** See "Next" for where this goes.
+**CSV customer import is the built feature.** See "Roadmap: R0–R4" for where
+this goes.
 
 ## Locked decisions
 
@@ -134,7 +135,7 @@ customer row and its embedding never drift out of sync.
   LangChain/LlamaIndex). Vue `views/customers/components/AskPanel.vue` in a
   modal, reached from the Customers toolbar. See the Architecture diagram above.
 
-## Known limitations / upload roadmap
+## Known limitations
 
 Record now, revisit when we harden the upload feature:
 
@@ -152,24 +153,64 @@ Record now, revisit when we harden the upload feature:
 - ~~**Port drift.**~~ Resolved — `docs/auth-sanctum-session.md` now uses the real
   ports (:8000 backend / :8001 python-service / :5173 frontend).
 
-## Next
+## Roadmap: R0–R4 (multi-module platform + rewards mobile app)
 
-The AI-dev pivot is **underway**: the upload feature reached "solid enough"
-(only backlog-level items remain — see above), and the RAG Q&A feature over
-`customers` data has shipped (see "What's built"). The corpus ended up being
-the app's own business data, not `docs/learning/journal.md` as originally
-sketched here — the user explicitly wanted something built on real app data
-with a real-world-realistic stack (pgvector, not a toy brute-force search),
-partly because a **Flutter mobile client is planned next** and this feature's
-API needs to already exist in a mobile-friendly shape. `journal.md` remains a
-possible *future* corpus for a second RAG experiment, not dropped, just not
-this one.
+The vision has expanded beyond the customer upload/RAG feature: the web app
+becomes an **ERP-like admin platform** (multiple modules gated by RBAC — e.g.
+a rewards-only admin sees just the rewards module), and a **Flutter mobile
+app** (built LAST) becomes the customer-facing rewards app. Uploading a
+customer sends an email invitation with a set-password link; that account is
+the customer's mobile login for checking points, browsing rewards, and
+redeeming them.
 
-Mobile: **not started**. Requires Sanctum API-token issuance first (tracked in
-`docs/backlog.md` — the app is 100% session/cookie auth today, which a Flutter
-client can't use).
+**Locked decisions:**
+- Order is fixed: **R0 → R1 (RBAC) → R2 (identity/invitations) → R3 (rewards
+  domain) → R4 (mobile, last)**.
+- Points in v1 are **admin-assigned only** (upload or manual credit);
+  customers only spend via redemptions — no earn-by-activity rules yet.
+- Points are an **append-only ledger** (`point_transactions`, balance =
+  SUM), never a mutable balance column — auditability.
+- Rewards is built as the **first concrete module** — no abstract "module
+  framework". Only the *permission naming* is module-aware (`rewards.*`,
+  `customers.*`), so future modules slot in without new plumbing.
 
-(The earlier draft's OCR/Tesseract input type is dropped — not pursuing it.)
+**Ground truth today:** auth is 100% Sanctum session (no token issuance yet);
+no queue or mail config exists; no RBAC of any kind (every authed user can do
+everything); `customers` rows are keyed `(customer_code, year)` and are NOT
+login accounts — R2 links them to a real identity.
+
+### R0 — close out this session's work (current)
+Commit the RAG feature + pin deps + write this roadmap into `PLAN.md` + ADR
+for the RAG stack + delete the spent `sample-data/bomb.xlsx` fixture.
+
+### R1 — RBAC foundation
+`spatie/laravel-permission` (dynamic roles/permissions as DB rows, not
+hand-rolled). Permission taxonomy = `module.action` grid (`customers.view`,
+`rewards.update`, etc.), seeded from a modules × actions matrix. Golden rule:
+app code checks **permissions**, never roles. Role-management admin UI
+(modules-as-rows × actions-as-columns checkbox grid). Menu/route/API all bind
+to the same `module.view` permission — no separate `menu.*` permissions.
+
+### R2 — Customer identity, invitations, mobile-ready auth
+New `customer_accounts` link (one per `customer_code`, not per upload row).
+Introduces queue + mail infra (neither exists yet) to send a signed, expiring
+invitation link on first upload of a new customer. `POST /api/mobile/login`
+issues a Sanctum bearer token for mobile.
+
+### R3 — Rewards module (web admin side)
+`rewards`, `point_transactions` (ledger), `redemptions`, `announcements`.
+Redemption must be race-condition-safe (balance check + ledger debit in one
+transaction, row-locked). Admin UI: Rewards, Points, Announcements views
+gated by R1's permissions.
+
+### R4 — Mobile (LAST): customer API + Flutter app
+`/api/mobile/*` endpoints (profile, rewards, redemptions, announcements) —
+customers can only ever see their own data. Flutter app: login, set-password,
+points home, rewards list, redeem flow, history. Push notifications/offline/
+app-store release explicitly out of scope for v1.
+
+Mobile: **not started** — blocked on R2's token issuance (tracked in
+`docs/backlog.md`).
 
 ## Verification (end to end)
 
