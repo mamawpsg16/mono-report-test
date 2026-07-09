@@ -36,7 +36,9 @@ Postgres → UI lists them.
   `config('services.python_service.url')`). Request/response, no `imports` job table,
   no polling, no async status.
 - **Parse/DB libs:** Python stdlib **`csv`** (utf-8-sig, strips Excel BOM) +
-  **`psycopg` (v3)**. Not pandas/openpyxl/psycopg2 — see "Known limitations".
+  **`openpyxl`** (xlsx, read-only streaming) + **`psycopg` (v3)**. Not
+  pandas/psycopg2. `reader.py` picks CSV vs xlsx by **magic bytes**, not the
+  extension — see "Known limitations" for the remaining caveats.
 - **Auth: DONE.** Laravel **Sanctum SPA session** auth (cookie + CSRF, not tokens).
   All `/api/customers*` routes sit behind `auth:sanctum`. Details in
   `docs/auth-sanctum-session.md`.
@@ -105,15 +107,19 @@ Browser (Vue SPA :5173)
 
 Record now, revisit when we harden the upload feature:
 
-- **In-memory + row-by-row.** `reader.py` loads the whole CSV into a list;
-  `upsert_customers` loops row-by-row with one commit per request. Fine for small
-  files; revisit chunked reads + batched inserts / `COPY` before large uploads.
-- **CSV only.** `reader.py` implements `read_csv` only, but Laravel's
-  `CustomerService` accepts `xlsx` too — an `.xlsx` upload would reach the service
-  and fail. Either add xlsx parsing or tighten the Laravel allow-list.
-- **Debug output.** `reader.py` `print()`s every row/header — remove before scale.
-- **Port drift.** `docs/auth-sanctum-session.md` references :8009/:8010; compose uses
-  :8000 (backend) / :8001 (python-service) / :5173 (frontend). Reconcile the doc.
+- **In-memory + row-by-row (still open).** `reader.py` loads the whole file into a
+  list; `upsert_customers` loops row-by-row (one transaction, one commit per
+  request). Fine for small files; revisit chunked reads + batched inserts / `COPY`
+  before large uploads.
+- **xlsx accepted but not hardened (still open).** `read_xlsx` parses via openpyxl
+  and Laravel allows `.xlsx`, but there's no upload **size cap** or **zip-bomb
+  guard** on untrusted spreadsheets. Tracked in `docs/backlog.md`.
+- ~~**CSV only.**~~ Resolved — `read_xlsx` added; `read_customers_file` dispatches
+  CSV vs xlsx by magic bytes (`PK\x03\x04`), not the extension.
+- ~~**Debug output.**~~ Resolved — the per-row/header `print()`s are gone from
+  `reader.py`.
+- ~~**Port drift.**~~ Resolved — `docs/auth-sanctum-session.md` now uses the real
+  ports (:8000 backend / :8001 python-service / :5173 frontend).
 
 ## Next (after the upload feature is solid)
 

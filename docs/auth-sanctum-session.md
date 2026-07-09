@@ -1,7 +1,7 @@
 # Auth: Sanctum Session-Based Login
 
 How DataForge logs users in. **Cookie/session auth** (SPA mode), not API tokens.
-Vue SPA (`:8010`) talks to Laravel API (`:8009`) using Laravel Sanctum's
+Vue SPA (`:5173`) talks to Laravel API (`:8000`) using Laravel Sanctum's
 "stateful" first-party flow.
 
 ---
@@ -24,7 +24,7 @@ backend are **same registrable domain** (here both `localhost`).
 ## 2. The request flow (what happens on "Sign in")
 
 ```
-Browser (localhost:8010)                    Laravel API (localhost:8009)
+Browser (localhost:5173)                    Laravel API (localhost:8000)
         |                                            |
         |  1. GET /sanctum/csrf-cookie               |
         |------------------------------------------->|
@@ -77,11 +77,12 @@ const api = axios.create({
 ```
 
 - `withCredentials: true` — without it, browser drops the session cookie on the
-  cross-origin (`:8010` -> `:8009`) call. Auth silently fails.
+  cross-origin (`:5173` -> `:8000`) call. Auth silently fails.
 - `withXSRFToken: true` — axios reads `XSRF-TOKEN` cookie, sets the header. Skip
   it and every POST gets **419 CSRF token mismatch**.
-- `baseURL` must point at the **host-published backend port** (`:8009`), injected
-  via `VITE_API_URL`. The fallback `:8000` is wrong for this stack — see §6.
+- `baseURL` must point at the **host-published backend port** (`:8000`), injected
+  via `VITE_API_URL`. It happens to match axios's `:8000` fallback here, but keep
+  `VITE_API_URL` set so the SPA doesn't break if `APP_PORT` ever changes — see §6.
 
 A `401` interceptor bounces the user back to `/login`.
 
@@ -127,7 +128,7 @@ Logout does `logout()` + `session()->invalidate()`.
 | CORS paths | `config/cors.php` | `['api/*', 'sanctum/csrf-cookie']` | Both the API and the CSRF endpoint must allow cross-origin. |
 | CORS origin | `config/cors.php` | `FRONTEND_URL` env | Exact frontend origin (no `*` allowed with credentials). |
 | CORS credentials | `config/cors.php` | `supports_credentials => true` | Required so the browser keeps the cookie. |
-| Session domain | `config/session.php` | `SESSION_DOMAIN=localhost` | Cookie shared across `:8010` and `:8009` (same host, diff port = same cookie domain). |
+| Session domain | `config/session.php` | `SESSION_DOMAIN=localhost` | Cookie shared across `:5173` and `:8000` (same host, diff port = same cookie domain). |
 | Same-site | `config/session.php` | `lax` | OK because both sides are `localhost`. |
 
 ---
@@ -135,23 +136,23 @@ Logout does `logout()` + `session()->invalidate()`.
 ## 5. Environment variables (.env)
 
 ```env
-APP_PORT=8009
-FRONTEND_PORT=8010
+APP_PORT=8000
+FRONTEND_PORT=5173
 
 # Sanctum: which origins are first-party (get session auth)
-SANCTUM_STATEFUL_DOMAINS=localhost:8010,localhost:8009,127.0.0.1:8010,127.0.0.1:8009
+SANCTUM_STATEFUL_DOMAINS=localhost:5173,localhost:8000,127.0.0.1:5173,127.0.0.1:8000
 
 # Cookie shared across both ports
 SESSION_DOMAIN=localhost
 
 # Exact frontend origin for CORS (credentials = no wildcard)
-FRONTEND_URL=http://localhost:8010
+FRONTEND_URL=http://localhost:5173
 
 # Browser-side API base — passed into the Vite build (see docker-compose)
-VITE_API_URL=http://localhost:8009
+VITE_API_URL=http://localhost:8000
 ```
 
-> Note: `localhost:8010` and `localhost:8009` are **different origins** (port
+> Note: `localhost:5173` and `localhost:8000` are **different origins** (port
 > differs) for CORS, but **same cookie domain** (`localhost`) for the session
 > cookie. That split is exactly why CORS config and `SESSION_DOMAIN` both matter.
 
@@ -170,7 +171,7 @@ frontend:
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| "Something went wrong", network shows request to `:8000` | `VITE_API_URL` not passed to frontend container; axios fell back to `:8000` | Add `environment: VITE_API_URL` to frontend service, recreate, hard-reload browser |
+| API calls hit the wrong port after changing `APP_PORT` | `VITE_API_URL` not passed to frontend container; axios fell back to its `:8000` default | Add `environment: VITE_API_URL` to frontend service, recreate, hard-reload browser |
 | **419** CSRF token mismatch | XSRF header missing, or CSRF cookie call skipped | `withXSRFToken: true`; always GET `/sanctum/csrf-cookie` before login |
 | **401** even with right creds | Frontend origin not in `SANCTUM_STATEFUL_DOMAINS`, or `withCredentials` off | Add host:port to stateful domains; set `withCredentials: true` |
 | CORS error in console | Origin not in `FRONTEND_URL`, or `supports_credentials` false | Match origin exactly; enable credentials |
@@ -184,16 +185,16 @@ frontend:
 ```sh
 J=cookies.txt
 # 1. get csrf cookie
-curl -s -c $J -b $J -H "Origin: http://localhost:8010" \
-  http://localhost:8009/sanctum/csrf-cookie
+curl -s -c $J -b $J -H "Origin: http://localhost:5173" \
+  http://localhost:8000/sanctum/csrf-cookie
 
 # 2. extract token, url-decode, post login
 XSRF=$(grep XSRF-TOKEN $J | awk '{print $7}' \
   | python3 -c "import sys,urllib.parse;print(urllib.parse.unquote(sys.stdin.read().strip()))")
 curl -s -w "\nHTTP %{http_code}\n" -c $J -b $J \
-  -H "Origin: http://localhost:8010" -H "Accept: application/json" \
+  -H "Origin: http://localhost:5173" -H "Accept: application/json" \
   -H "Content-Type: application/json" -H "X-XSRF-TOKEN: $XSRF" \
-  -X POST http://localhost:8009/api/login \
+  -X POST http://localhost:8000/api/login \
   -d '{"email":"admin@dataforge.test","password":"password"}'
 ```
 

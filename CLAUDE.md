@@ -30,11 +30,12 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   guard), the customer upload flow (preview → confirm) end to end, and the
   Customers list UI (searchable/paginated table, fixed columns, responsive
   mobile behavior).
-- Current milestone: **finish/polish the upload feature** — see PLAN.md
-  "Known limitations / upload roadmap" (in-memory + row-by-row upsert,
-  CSV-only reader vs xlsx accepted, debug prints, port drift). Most of the
-  UI polish this session predates the mentor kit, so it hasn't been run
-  past the rules above yet.
+- Current milestone: **finish/polish the upload feature** — mostly done.
+  Debug prints removed, xlsx parsing added (magic-byte dispatch), and the
+  port-drift doc reconciled. Remaining: in-memory + row-by-row upsert and
+  xlsx hardening (both fine for small files — see PLAN.md "Known limitations"
+  and `docs/backlog.md`). Most of the UI polish this session predates the
+  mentor kit, so it hasn't been run past the rules above yet.
 - Next after uploads: pivot the learning track to **AI development
   (RAG / LLM app work)** — that's the goal. `docs/learning/journal.md`
   becomes a natural first RAG corpus.
@@ -57,9 +58,10 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   service/migration were deleted.
 - Laravel owns the schema (migrations); `python-service` parses, validates,
   diffs, and **writes customer rows directly** to Postgres.
-- Parse/DB libs in python-service: stdlib **`csv`** + **`psycopg` (v3)** —
-  not pandas/openpyxl/psycopg2. (See PLAN.md limitations for why that
-  matters at scale.)
+- Parse/DB libs in python-service: stdlib **`csv`** + **`openpyxl`** (xlsx,
+  read-only) + **`psycopg` (v3)** — not pandas/psycopg2. `reader.py` dispatches
+  CSV vs xlsx by real **magic bytes**, not the extension. (See PLAN.md
+  limitations for the remaining at-scale caveat.)
 - Auth: **Sanctum SPA session** (cookie + CSRF, not tokens), fully wired.
   See `docs/auth-sanctum-session.md`.
 - Frontend: `frontend/src/views/customers/` is the working feature area;

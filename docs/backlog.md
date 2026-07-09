@@ -27,3 +27,16 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   control). Pre-existing, not introduced by the dropdown-clipping fix.
   Revisit if accessibility becomes a real requirement, or when AppSelect
   next gets touched for another reason.
+
+## From upload roadmap, 2026-07-09
+
+- **Harden xlsx uploads against malicious files** — `read_xlsx` (openpyxl) now
+  parses `.xlsx`, which is a zip container. No **upload size cap** and no
+  **zip-bomb / decompression guard** exist yet, so a small crafted file could
+  expand to exhaust memory. Add a size limit at the Laravel boundary and a
+  decompressed-size / cell-count guard before parsing. Revisit before real users
+  can upload, or before uploads are exposed beyond trusted testers.
+- **Batched inserts / `COPY` for large files** — `upsert_customers` loops
+  row-by-row and `reader.py` loads the whole file into memory. Fine for the small
+  files we test with; revisit chunked reads + batched `INSERT`/`COPY` when a real
+  file size (name the number then — e.g. >10k rows) justifies it.
