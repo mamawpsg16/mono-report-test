@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter, HTTPException
-from reader import read_customers_file
+from reader import read_customers_file, UnsafeXlsxError
 from validator import validate_rows
 from customers import compute_diff, upsert_customers
 from schemas.customers import ValidateRequest, ProcessRequest
@@ -28,16 +28,23 @@ def resolve_file(path: str) -> str:
     return full_path
 
 
+def read_file_or_400(path: str):
+    try:
+        return read_customers_file(resolve_file(path))
+    except UnsafeXlsxError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/validate")
 def validate_file(payload: ValidateRequest):
-    rows = read_customers_file(resolve_file(payload.path))
+    rows = read_file_or_400(payload.path)
     errors = validate_rows(rows)
     return compute_diff(rows, errors)
 
 
 @router.post("/process")
 def process_file(payload: ProcessRequest):
-    rows = read_customers_file(resolve_file(payload.path))
+    rows = read_file_or_400(payload.path)
 
     errors = validate_rows(rows)
     if errors:

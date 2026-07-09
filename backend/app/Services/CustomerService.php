@@ -60,10 +60,14 @@ class CustomerService
             ->post('/customers/validate', ['path' => $storedPath]);
 
         if ($response->failed()) {
+            // FastAPI's HTTPException puts its real message in `detail` -- a
+            // 400 means the service rejected the file for a specific reason
+            // (e.g. the xlsx zip-bomb guard), which the caller should see
+            // rather than a generic "unavailable" that implies an outage.
             return [
                 'summary' => ['total_rows' => 0, 'new_count' => 0, 'update_count' => 0, 'error_count' => 1],
                 'rows'    => [],
-                'errors'  => [['row' => 0, 'column' => '', 'message' => 'Validation service unavailable']],
+                'errors'  => [['row' => 0, 'column' => '', 'message' => $response->json('detail') ?? 'Validation service unavailable']],
             ];
         }
 
@@ -85,7 +89,7 @@ class CustomerService
             ]);
 
         if ($response->failed()) {
-            return ['status' => 'failed', 'processed_rows' => 0, 'errors' => [['row' => 0, 'column' => '', 'message' => 'Processing service unavailable']]];
+            return ['status' => 'failed', 'processed_rows' => 0, 'errors' => [['row' => 0, 'column' => '', 'message' => $response->json('detail') ?? 'Processing service unavailable']]];
         }
 
         return $response->json() ?? ['status' => 'failed', 'processed_rows' => 0, 'errors' => [['row' => 0, 'column' => '', 'message' => 'No response from processing service']]];

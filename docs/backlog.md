@@ -30,12 +30,16 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
 
 ## From upload roadmap, 2026-07-09
 
-- **Harden xlsx uploads against malicious files** — `read_xlsx` (openpyxl) now
-  parses `.xlsx`, which is a zip container. No **upload size cap** and no
-  **zip-bomb / decompression guard** exist yet, so a small crafted file could
-  expand to exhaust memory. Add a size limit at the Laravel boundary and a
-  decompressed-size / cell-count guard before parsing. Revisit before real users
-  can upload, or before uploads are exposed beyond trusted testers.
+- ~~**Harden xlsx uploads against zip-bomb decompression.**~~ Resolved
+  2026-07-09 — `reader.py::assert_xlsx_safe` inspects the zip directory
+  listing (total uncompressed size, per-entry compression ratio) before
+  openpyxl unzips anything; rejects with HTTP 400. (Laravel's 10MB on-disk
+  cap in `StoreImportRequest.php` already existed — the gap was specifically
+  the *decompressed* size, not the upload size.)
+- **Cap row/cell count on xlsx uploads** — the zip-bomb guard limits
+  decompressed *byte size*, not row count. A file with an enormous number of
+  thin rows could still pass and be slow to iterate (CPU, not memory).
+  Revisit if a real file shows this in practice.
 - **Batched inserts / `COPY` for large files** — `upsert_customers` loops
   row-by-row and `reader.py` loads the whole file into memory. Fine for the small
   files we test with; revisit chunked reads + batched `INSERT`/`COPY` when a real

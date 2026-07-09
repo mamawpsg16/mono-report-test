@@ -111,9 +111,9 @@ Record now, revisit when we harden the upload feature:
   list; `upsert_customers` loops row-by-row (one transaction, one commit per
   request). Fine for small files; revisit chunked reads + batched inserts / `COPY`
   before large uploads.
-- **xlsx accepted but not hardened (still open).** `read_xlsx` parses via openpyxl
-  and Laravel allows `.xlsx`, but there's no upload **size cap** or **zip-bomb
-  guard** on untrusted spreadsheets. Tracked in `docs/backlog.md`.
+- ~~**xlsx zip-bomb guard.**~~ Resolved — `reader.py::assert_xlsx_safe` rejects
+  `.xlsx` files with a suspicious compression ratio or decompressed size before
+  openpyxl parses them. Row/cell-count capping remains open (`docs/backlog.md`).
 - ~~**CSV only.**~~ Resolved — `read_xlsx` added; `read_customers_file` dispatches
   CSV vs xlsx by magic bytes (`PK\x03\x04`), not the extension.
 - ~~**Debug output.**~~ Resolved — the per-row/header `print()`s are gone from
