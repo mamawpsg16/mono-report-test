@@ -108,12 +108,12 @@ class CustomerService
         return $response->json() ?? ['status' => 'failed', 'processed_rows' => 0, 'errors' => [['row' => 0, 'column' => '', 'message' => 'No response from processing service']]];
     }
 
-    public function ask(string $question): array
+    public function ask(string $question, array $history = []): array
     {
         try {
             $response = Http::baseUrl(config('services.python_service.url'))
                 ->timeout(120)
-                ->post('/customers/ask', ['question' => $question]);
+                ->post('/customers/ask', ['question' => $question, 'history' => $history]);
         } catch (ConnectionException) {
             return ['answer' => null, 'sources' => [], 'error' => 'RAG service unreachable'];
         }

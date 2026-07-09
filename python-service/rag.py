@@ -58,8 +58,21 @@ def _format_context(matches: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def answer_question(question: str, top_k: int = 5) -> dict:
-    matches = _search_customers(question, top_k)
+def _retrieval_query(question: str, history: list[dict]) -> str:
+    """A bare follow-up like "give me all details" has nothing on its own for
+    similarity search to match -- it doesn't mention Acme, Accra, or anything.
+    Fold in the most recent user turn so the embedding still carries whatever
+    the conversation is actually about. Generation still sees the real,
+    separate turns below -- this combined text is retrieval-only."""
+    prior_user_turns = [t["content"] for t in history if t["role"] == "user"]
+    if not prior_user_turns:
+        return question
+    return f"{prior_user_turns[-1]} {question}"
+
+
+def answer_question(question: str, history: list[dict] | None = None, top_k: int = 5) -> dict:
+    history = history or []
+    matches = _search_customers(_retrieval_query(question, history), top_k)
 
     if not matches:
         return {
@@ -76,6 +89,7 @@ def answer_question(question: str, top_k: int = 5) -> dict:
         model=GROQ_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
+            *history,
             {
                 "role": "user",
                 "content": (

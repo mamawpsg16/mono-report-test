@@ -11,5 +11,11 @@ class ProcessRequest(BaseModel):
     user_id: int | None = None
 
 
+class AskTurn(BaseModel):
+    role: str    # "user" | "assistant"
+    content: str
+
+
 class AskRequest(BaseModel):
     question: str
+    history: list[AskTurn] = []   # prior turns in this conversation, oldest first

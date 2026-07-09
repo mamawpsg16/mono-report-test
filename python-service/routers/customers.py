@@ -58,6 +58,7 @@ def process_file(payload: ProcessRequest):
 @router.post("/ask")
 def ask(payload: AskRequest):
     try:
-        return answer_question(payload.question)
+        history = [turn.model_dump() for turn in payload.history]
+        return answer_question(payload.question, history)
     except RagConfigError as e:
         raise HTTPException(status_code=500, detail=str(e))

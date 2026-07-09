@@ -54,10 +54,14 @@ class CustomerController extends Controller
     {
         $request->validate([
             'question' => 'required|string|max:500',
+            'history' => 'array|max:20',
+            'history.*.role' => 'required_with:history|in:user,assistant',
+            'history.*.content' => 'required_with:history|string|max:2000',
         ]);
 
         return response()->json($this->customerService->ask(
             $request->input('question'),
+            $request->input('history', []),
         ));
     }
 }
