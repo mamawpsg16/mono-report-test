@@ -2,8 +2,9 @@
 
 - One milestone ≈ one or a few small commits. Never one giant commit
   per phase.
-- I write commit messages; you review them. Format: imperative summary
-  ≤72 chars, body explains WHY when it isn't obvious.
+- You draft commit messages; I review and approve before you run
+  `git commit`. Format: imperative summary ≤72 chars, body explains WHY
+  when it isn't obvious.
   Good: `Add chunked CSV read to keep memory flat on 100k-row files`
   Bad: `updates`, `fix stuff`, `phase 4`
 - Branch per phase or feature: `phase-4-python-worker`,
