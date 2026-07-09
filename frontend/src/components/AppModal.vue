@@ -96,7 +96,11 @@ watch(() => props.modelValue, (isOpen) => {
   position: absolute; top: 14px; right: 14px; z-index: 1;
 }
 
-.modal-body { overflow-y: auto; }
+/* scrollbar-gutter: stable reserves the scrollbar's space up front, so a
+   transient scrollbar (content briefly taller than available height while
+   the enter transition settles) doesn't cause a visible width jump when it
+   toggles on/off a frame or two after the modal opens */
+.modal-body { overflow-y: auto; scrollbar-gutter: stable; }
 
 .modal-fade-enter-active, .modal-fade-leave-active { transition: background-color 0.15s ease; }
 .modal-fade-enter-from, .modal-fade-leave-to { background-color: rgba(15, 15, 25, 0); }

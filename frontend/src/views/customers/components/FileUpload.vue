@@ -422,7 +422,12 @@ function cancelUpload() {
 @keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-9px); } }
 @keyframes checkDraw { to { stroke-dashoffset: 0; } }
 @keyframes slideInRight { from { opacity: 0; transform: translateX(110%); } to { opacity: 1; transform: translateX(0); } }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+/* enters from ABOVE (translateY negative), not below: a child transformed
+   downward extends the scroll container's scrollable area for the duration
+   of the animation, flashing modal-body's scrollbar on every state change.
+   Overflow above the top edge is clipped, never scrollable, so sliding down
+   into place can't trigger it (and the clipped edge is at opacity 0 anyway). */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
 .fade-up { animation: fadeUp 0.3s ease; }
 
