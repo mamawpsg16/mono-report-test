@@ -1,5 +1,6 @@
 <template>
   <div class="customers-index">
+    <div ref="tableWrap">
     <DatatableServer
       v-model="searchInput"
       search-placeholder="Search customers..."
@@ -13,6 +14,13 @@
       v-model:items-selected="selectedRows"
     >
       <template #actions>
+        <span v-if="selectedRows.length" class="selection-note">
+          {{ selectedRows.length }} selected
+          <button class="btn-secondary" @click="selectedRows = []">
+            <X :size="13" :stroke-width="2" />
+            Clear
+          </button>
+        </span>
         <button class="btn-secondary">
           <Filter :size="13" :stroke-width="2" />
           Filter
@@ -36,6 +44,7 @@
       <template #item-creator="row">{{ row.creator?.name ?? '—' }}</template>
       <template #item-updater="row">{{ row.updater?.name ?? '—' }}</template>
     </DatatableServer>
+    </div>
 
     <FileUpload v-model="showUploadModal" @imported="fetchCustomers" />
 
@@ -44,11 +53,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { Upload, Filter, Download, Eye } from '@lucide/vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { Upload, Filter, Download, Eye, X } from '@lucide/vue'
 import api from '@/helpers/api'
 import { usePagination } from '@/composables/usePagination'
 import { useIsMobile } from '@/composables/useIsMobile'
+import { useColumnFreeze } from '@/composables/useColumnFreeze'
 import DatatableServer from '@/components/table/DatatableServer.vue'
 import FileUpload from './components/FileUpload.vue'
 import DetailModal from './components/DetailModal.vue'
@@ -57,25 +67,31 @@ const COLUMNS = {
   customer_code: { text: 'Customer Code', width: 140, fixed: true },
   year: { text: 'Year', width: 90 },
   name: { text: 'Name', width: 160, fixed: true },
-  email: { text: 'Email', width: 220 },
+  email: { text: 'Email', width: 180 },
   phone: { text: 'Phone', width: 140 },
-  address: { text: 'Address', width: 220 },
+  address: { text: 'Address', width: 160 },
   city: { text: 'City', width: 130 },
   country: { text: 'Country', width: 130 },
 }
 
 const isMobile = useIsMobile()
 
-// sticky columns need spare width to pin against — on narrow screens the
-// pinned columns alone eat the whole viewport, so fall back to a plain
-// scrollable table instead of freezing anything
+// freeze the lead columns only when the table actually overflows (see
+// useColumnFreeze). `tableWrap` is the ref on the wrapper div around the table.
+const { container: tableWrap, frozen: columnsFrozen, measure: remeasureColumns } = useColumnFreeze()
+
+// Only pin columns when there's something to scroll: freezing on a table that
+// already fits just forces a needless horizontal scrollbar. Also skip pinning
+// on mobile, where the pinned columns alone would eat the whole viewport.
+const canFreeze = computed(() => columnsFrozen.value && !isMobile.value)
+
 const headers = computed(() => [
-  { text: 'Details', value: 'details', width: 90, fixed: !isMobile.value },
+  { text: 'Details', value: 'details', width: 90, fixed: canFreeze.value },
   ...Object.entries(COLUMNS).map(([value, { text, width, fixed }]) => ({
     text,
     value,
     width,
-    fixed: fixed && !isMobile.value,
+    fixed: fixed && canFreeze.value,
   })),
   { text: 'Created By', value: 'creator', width: 130 },
   { text: 'Updated By', value: 'updater', width: 130 },
@@ -105,6 +121,10 @@ async function fetchCustomers() {
     customers.value = data.data
     lastPage.value = data.last_page
     total.value = data.total
+    // rows just changed the table's content width; re-check overflow so the
+    // freeze/scroll decision matches the data that's actually rendered
+    await nextTick()
+    remeasureColumns()
   } catch (err) {
     if (err.code !== 'ERR_CANCELED') throw err
   }
@@ -151,4 +171,9 @@ onMounted(fetchCustomers)
 .btn-icon:hover { background: var(--color-surface-hover); color: var(--color-text); }
 
 .td-code { font-weight: 500; color: var(--color-text); }
+
+.selection-note {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 500; color: var(--color-text-muted);
+}
 </style>
