@@ -48,19 +48,26 @@
 
     <FileUpload v-model="showUploadModal" @imported="fetchCustomers" />
 
+    <AskPanel v-model="showAskModal" />
+
     <DetailModal :row="detailRow" @close="detailRow = null" />
+
+    <button class="ask-fab" @click="showAskModal = true" aria-label="Ask about your customers">
+      <Sparkles :size="20" :stroke-width="2" />
+    </button>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { Upload, Filter, Download, Eye, X } from '@lucide/vue'
+import { Upload, Filter, Download, Eye, X, Sparkles } from '@lucide/vue'
 import api from '@/helpers/api'
 import { usePagination } from '@/composables/usePagination'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { useColumnFreeze } from '@/composables/useColumnFreeze'
 import DatatableServer from '@/components/table/DatatableServer.vue'
 import FileUpload from './components/FileUpload.vue'
+import AskPanel from './components/AskPanel.vue'
 import DetailModal from './components/DetailModal.vue'
 
 const COLUMNS = {
@@ -100,6 +107,7 @@ const headers = computed(() => [
 const customers = ref([])
 const { page, perPage, lastPage, total } = usePagination()
 const showUploadModal = ref(false)
+const showAskModal = ref(false)
 const searchInput = ref('')
 const search = ref('')
 const selectedRows = ref([])
@@ -175,5 +183,28 @@ onMounted(fetchCustomers)
 .selection-note {
   display: flex; align-items: center; gap: 8px;
   font-size: 12.5px; font-weight: 500; color: var(--color-text-muted);
+}
+
+.ask-fab {
+  position: fixed;
+  bottom: 28px; right: 32px;
+  z-index: 100;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(var(--color-accent-rgb), 0.35), 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ask-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--color-accent-rgb), 0.4), 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 640px) {
+  .ask-fab { bottom: 20px; right: 20px; width: 48px; height: 48px; }
 }
 </style>

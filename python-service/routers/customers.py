@@ -3,7 +3,8 @@ from fastapi import APIRouter, HTTPException
 from reader import read_customers_file, UnsafeXlsxError
 from validator import validate_rows
 from customers import compute_diff, upsert_customers
-from schemas.customers import ValidateRequest, ProcessRequest
+from rag import answer_question, RagConfigError
+from schemas.customers import ValidateRequest, ProcessRequest, AskRequest
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
@@ -52,3 +53,11 @@ def process_file(payload: ProcessRequest):
 
     upsert_customers(rows, payload.original_filename, payload.user_id)
     return {"status": "done", "processed_rows": len(rows), "errors": []}
+
+
+@router.post("/ask")
+def ask(payload: AskRequest):
+    try:
+        return answer_question(payload.question)
+    except RagConfigError as e:
+        raise HTTPException(status_code=500, detail=str(e))

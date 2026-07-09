@@ -1,4 +1,5 @@
 from db import get_connection
+from embeddings import embed, to_pgvector_literal
 
 # Fields compared when deciding whether an existing customer row would change.
 COMPARE_FIELDS = ["name", "email", "phone", "address", "city", "country"]
@@ -7,6 +8,24 @@ COMPARE_FIELDS = ["name", "email", "phone", "address", "city", "country"]
 def _clean(value):
     value = (value or "").strip()
     return value or None
+
+
+def _embedding_text(row):
+    """Short natural-language blurb of a row, for the RAG similarity search
+    (see rag.py). Only non-empty fields are included."""
+    parts = [
+        row.get("name", "").strip(),
+        f"customer code {row.get('customer_code', '').strip()}",
+        f"year {row.get('year', '')}",
+    ]
+    for label, key in [
+        ("city", "city"), ("country", "country"),
+        ("email", "email"), ("phone", "phone"), ("address", "address"),
+    ]:
+        value = _clean(row.get(key))
+        if value:
+            parts.append(f"{label} {value}")
+    return ", ".join(parts)
 
 
 def compute_diff(rows, errors=None):
@@ -72,9 +91,12 @@ def compute_diff(rows, errors=None):
 
 
 def upsert_customers(rows, original_filename, user_id=None):
-    """Write every row into customers. New (code, year) -> INSERT. Existing -> UPDATE."""
+    """Write every row into customers. New (code, year) -> INSERT. Existing -> UPDATE.
+    Also (re)computes each row's RAG embedding in the same transaction, so a
+    customer row and its embedding never drift out of sync."""
     with get_connection() as conn:
         with conn.cursor() as cur:
+            customer_ids = []
             for row in rows:
                 cur.execute(
                     """
@@ -94,6 +116,7 @@ def upsert_customers(rows, original_filename, user_id=None):
                         is_active = true,
                         updated_by = EXCLUDED.updated_by,
                         updated_at = NOW()
+                    RETURNING id
                     """,
                     (
                         original_filename,
@@ -108,5 +131,24 @@ def upsert_customers(rows, original_filename, user_id=None):
                         user_id,
                         user_id,
                     ),
+                )
+                customer_ids.append(cur.fetchone()["id"])
+
+            # one batched embed() call instead of N -> fastembed does its own
+            # internal batching, so this is much cheaper than embedding per row
+            vectors = embed([_embedding_text(row) for row in rows])
+
+            for customer_id, embedding in zip(customer_ids, vectors):
+                cur.execute(
+                    """
+                    INSERT INTO customer_embeddings (customer_id, embedding, created_at, updated_at)
+                    VALUES (%s, %s::vector, NOW(), NOW())
+                    ON CONFLICT (customer_id) DO UPDATE SET
+                        embedding = EXCLUDED.embedding,
+                        updated_at = NOW()
+                    """,
+                    # see rag.py -- bind pgvector's text format + cast in SQL
+                    # rather than depending on the client library's wrapper type
+                    (customer_id, to_pgvector_literal(embedding)),
                 )
         conn.commit()   # one commit after all rows -> all-or-nothing per request

@@ -17,4 +17,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/customers', [CustomerController::class, 'index']);
     Route::post('/customers/preview', [CustomerController::class, 'preview']);
     Route::post('/customers/confirm', [CustomerController::class, 'confirm']);
+    Route::post('/customers/ask', [CustomerController::class, 'ask']);
 });

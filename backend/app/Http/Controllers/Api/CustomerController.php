@@ -49,4 +49,15 @@ class CustomerController extends Controller
             $request->input('original_filename'),
         ));
     }
+
+    public function ask(Request $request)
+    {
+        $request->validate([
+            'question' => 'required|string|max:500',
+        ]);
+
+        return response()->json($this->customerService->ask(
+            $request->input('question'),
+        ));
+    }
 }

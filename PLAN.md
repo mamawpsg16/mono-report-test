@@ -64,7 +64,20 @@ Browser (Vue SPA :5173)
 
   → GET /api/customers?page&per_page&search
        Laravel: paginate customers (ilike search across fields) + creator/updater
+
+  → POST /api/customers/ask   { question }
+       Laravel CustomerService::ask()
+         → HTTP POST python-service /customers/ask
+              embed(question) via fastembed (local, 384-dim)
+              → pgvector similarity search (customer_embeddings <=> customers)  → reads Postgres
+              → Groq chat completion, prompt = matched rows + question
+         ← { answer, sources: [{customer_code, name, year}] }
+  ← UI shows the answer + which customer rows it was based on
 ```
+
+RAG note: `upsert_customers` (the confirm flow above) also computes and writes
+each row's embedding into `customer_embeddings` in the same transaction, so a
+customer row and its embedding never drift out of sync.
 
 ## Data model
 
@@ -89,6 +102,19 @@ Browser (Vue SPA :5173)
   **update**; unseen pair = **new**. `upsert_customers` writes via
   `INSERT ... ON CONFLICT (customer_code, year) DO UPDATE`.
 
+`customer_embeddings` (Laravel migration owns this; `pgvector` extension required —
+`db` image is `pgvector/pgvector:pg16`):
+
+| column | notes |
+| --- | --- |
+| `customer_id` | pk, FK → `customers.id`, cascade delete |
+| `embedding` | `vector(384)` — fastembed `BAAI/bge-small-en-v1.5` output |
+| `timestamps` | |
+
+- HNSW index (`vector_cosine_ops`) for similarity search.
+- Written by `python-service/customers.py::upsert_customers` in the same
+  transaction as the customer row it belongs to.
+
 ## What's built
 
 - **Compose stack**: `db` + `python-service` + `backend` + `frontend`, one
@@ -99,9 +125,14 @@ Browser (Vue SPA :5173)
   `python-service` `/customers/validate` + `/customers/process`, Vue
   `views/customers/components/FileUpload.vue` in an upload modal.
 - **Customers list UI**: `views/customers/Index.vue` — searchable, paginated table,
-  fixed columns (desktop) with responsive fallback on mobile. Shared components:
-  `AppDataTable`, `AppPagination`, `AppSelect`, `AppSearchInput`, `AppModal`;
-  composables `usePagination`, `useIsMobile`.
+  fixed columns (desktop, only when the table actually overflows) with responsive
+  fallback on mobile. Shared components: `AppDataTable`, `AppPagination`,
+  `AppSelect`, `AppSearchInput`, `AppModal`; composables `usePagination`,
+  `useIsMobile`, `useColumnFreeze`.
+- **RAG Q&A over customers** (`/customers/ask`): local `fastembed` embeddings +
+  `pgvector` similarity search + Groq for generation, built by hand (no
+  LangChain/LlamaIndex). Vue `views/customers/components/AskPanel.vue` in a
+  modal, reached from the Customers toolbar. See the Architecture diagram above.
 
 ## Known limitations / upload roadmap
 
@@ -121,12 +152,22 @@ Record now, revisit when we harden the upload feature:
 - ~~**Port drift.**~~ Resolved — `docs/auth-sanctum-session.md` now uses the real
   ports (:8000 backend / :8001 python-service / :5173 frontend).
 
-## Next (after the upload feature is solid)
+## Next
 
-Finish/polish uploads first (limitations above). Then the learning track pivots to
-**AI development** — the user's goal is to become an **AI developer** (RAG / LLM app
-work). `docs/learning/journal.md` accumulates concepts in the user's own words as we
-go; that log is a natural first corpus to build a RAG experiment on top of.
+The AI-dev pivot is **underway**: the upload feature reached "solid enough"
+(only backlog-level items remain — see above), and the RAG Q&A feature over
+`customers` data has shipped (see "What's built"). The corpus ended up being
+the app's own business data, not `docs/learning/journal.md` as originally
+sketched here — the user explicitly wanted something built on real app data
+with a real-world-realistic stack (pgvector, not a toy brute-force search),
+partly because a **Flutter mobile client is planned next** and this feature's
+API needs to already exist in a mobile-friendly shape. `journal.md` remains a
+possible *future* corpus for a second RAG experiment, not dropped, just not
+this one.
+
+Mobile: **not started**. Requires Sanctum API-token issuance first (tracked in
+`docs/backlog.md` — the app is 100% session/cookie auth today, which a Flutter
+client can't use).
 
 (The earlier draft's OCR/Tesseract input type is dropped — not pursuing it.)
 
@@ -137,3 +178,13 @@ go; that log is a natural first corpus to build a RAG experiment on top of.
 `SELECT * FROM customers;` shows the rows, list + search in the UI reflect them →
 upload a malformed file → preview returns HTTP 422 with per-row errors, nothing
 written.
+
+**RAG (`/customers/ask`):** after the migration runs, `\d customer_embeddings`
+shows a `vector(384)` column + HNSW index. After confirming an upload,
+`SELECT customer_id, embedding IS NOT NULL FROM customer_embeddings;` shows a
+row per uploaded customer. Click **Ask** in the toolbar, ask something the
+sample data can answer (e.g. "which customers are in Accra?") → expect an
+answer naming the right customer plus a sources list. Ask something
+unrelated, or with an empty `customers` table → expect a graceful "I don't
+know" / "no customer data yet", not a crash or hallucination. Remove
+`GROQ_API_KEY` from `.env` and retry → expect a clean error, not a raw 500.

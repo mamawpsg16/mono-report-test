@@ -9,3 +9,7 @@ class ProcessRequest(BaseModel):
     path: str
     original_filename: str
     user_id: int | None = None
+
+
+class AskRequest(BaseModel):
+    question: str

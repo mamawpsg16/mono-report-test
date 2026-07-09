@@ -44,3 +44,19 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   row-by-row and `reader.py` loads the whole file into memory. Fine for the small
   files we test with; revisit chunked reads + batched `INSERT`/`COPY` when a real
   file size (name the number then — e.g. >10k rows) justifies it.
+
+## From RAG feature (customers /ask), 2026-07-09
+
+- **Sanctum API-token issuance for the future Flutter mobile client** — the
+  next explicit milestone, not part of this one. The app is 100% session
+  (cookie) auth today; a mobile client needs its own token-login endpoint
+  (`$user->createToken(...)`) since it can't share a browser cookie jar.
+  `personal_access_tokens` table already exists (Sanctum default install,
+  currently unused) — the issuance endpoint is the missing piece.
+- **Rate limiting on `POST /customers/ask`** — no per-request cap beyond
+  requiring a logged-in session; a malicious or buggy client could run up
+  Groq API usage. Revisit if cost becomes a real concern.
+- **`.env.example` references a non-existent
+  `docs/security/06-secrets-management.md`** — stale, unrelated to this
+  feature, noticed while adding `GROQ_API_KEY`. Either write that doc or fix
+  the reference (the real security docs are `00`–`03` in `docs/security/`).

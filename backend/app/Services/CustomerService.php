@@ -108,6 +108,23 @@ class CustomerService
         return $response->json() ?? ['status' => 'failed', 'processed_rows' => 0, 'errors' => [['row' => 0, 'column' => '', 'message' => 'No response from processing service']]];
     }
 
+    public function ask(string $question): array
+    {
+        try {
+            $response = Http::baseUrl(config('services.python_service.url'))
+                ->timeout(120)
+                ->post('/customers/ask', ['question' => $question]);
+        } catch (ConnectionException) {
+            return ['answer' => null, 'sources' => [], 'error' => 'RAG service unreachable'];
+        }
+
+        if ($response->failed()) {
+            return ['answer' => null, 'sources' => [], 'error' => $response->json('detail') ?? 'RAG service error'];
+        }
+
+        return $response->json() ?? ['answer' => null, 'sources' => [], 'error' => 'No response from RAG service'];
+    }
+
     private function resolveExtension(UploadedFile $file): string
     {
         $extension = strtolower($file->getClientOriginalExtension());
