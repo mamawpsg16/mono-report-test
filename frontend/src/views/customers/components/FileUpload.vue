@@ -206,15 +206,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import api from '@/helpers/api'
 import DatatableClient from '@/components/table/DatatableClient.vue'
 import AppModal from '@/components/AppModal.vue'
 
-defineProps({
-  modelValue: { type: Boolean, default: false }, // true = modal open
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
 })
-
 const emit = defineEmits(['imported', 'update:modelValue'])
 
 const view = ref('idle')
@@ -287,6 +286,12 @@ function goIdle() {
   previewTab.value = 'rows'
   rowFilter.value = 'all'
 }
+
+// Reset to the initial upload view each time the modal opens, so a previous
+// success/review screen doesn't linger when the user reopens it.
+watch(() => props.modelValue, (isOpen) => {
+  if (isOpen) goIdle()
+})
 
 function onDrop(event) {
   dragOver.value = false
