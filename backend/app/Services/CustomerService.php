@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -55,9 +56,17 @@ class CustomerService
 
     private function validateWithPython(string $storedPath): array
     {
-        $response = Http::baseUrl(config('services.python_service.url'))
-            ->timeout(120)
-            ->post('/customers/validate', ['path' => $storedPath]);
+        try {
+            $response = Http::baseUrl(config('services.python_service.url'))
+                ->timeout(120)
+                ->post('/customers/validate', ['path' => $storedPath]);
+        } catch (ConnectionException) {
+            return [
+                'summary' => ['total_rows' => 0, 'new_count' => 0, 'update_count' => 0, 'error_count' => 1],
+                'rows'    => [],
+                'errors'  => [['row' => 0, 'column' => '', 'message' => 'Validation service unreachable']],
+            ];
+        }
 
         if ($response->failed()) {
             // FastAPI's HTTPException puts its real message in `detail` -- a
@@ -80,13 +89,17 @@ class CustomerService
 
     private function processWithPython(string $storedPath, string $originalFilename): array
     {
-        $response = Http::baseUrl(config('services.python_service.url'))
-            ->timeout(120)
-            ->post('/customers/process', [
-                'path' => $storedPath,
-                'original_filename' => $originalFilename,
-                'user_id' => auth()->id(),
-            ]);
+        try {
+            $response = Http::baseUrl(config('services.python_service.url'))
+                ->timeout(120)
+                ->post('/customers/process', [
+                    'path' => $storedPath,
+                    'original_filename' => $originalFilename,
+                    'user_id' => auth()->id(),
+                ]);
+        } catch (ConnectionException) {
+            return ['status' => 'failed', 'processed_rows' => 0, 'errors' => [['row' => 0, 'column' => '', 'message' => 'Processing service unreachable']]];
+        }
 
         if ($response->failed()) {
             return ['status' => 'failed', 'processed_rows' => 0, 'errors' => [['row' => 0, 'column' => '', 'message' => $response->json('detail') ?? 'Processing service unavailable']]];
