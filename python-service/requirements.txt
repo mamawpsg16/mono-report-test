@@ -1,12 +1,8 @@
-# RAG deps -- left unpinned (versions not verifiable offline); after the
-# first successful `docker compose build python-service`, pin them by
-# running `docker compose exec python-service pip freeze` and copying the
-# resolved fastembed/groq lines up here with the rest. (No `pgvector`
-# package needed -- customer_embeddings binds/reads via plain string
-# literals cast with ::vector in SQL, not the pgvector-python client;
-# see embeddings.py::to_pgvector_literal.)
-fastembed
-groq
+fastembed==0.8.0
+groq==1.5.0
+# No `pgvector` package needed -- customer_embeddings binds/reads via plain
+# string literals cast with ::vector in SQL, not the pgvector-python client;
+# see embeddings.py::to_pgvector_literal.
 
 annotated-doc==0.0.4
 annotated-types==0.7.0
