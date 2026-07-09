@@ -75,7 +75,8 @@ Browser (Vue SPA :5173)
 | `customer_code` | part of natural key |
 | `year` | unsigned smallint, part of natural key |
 | `name` | required |
-| `email` `phone` `address` `city` `country` | nullable |
+| `email` | required (NOT NULL — see migration `2026_07_09_024254`) |
+| `phone` `address` `city` `country` | nullable |
 | `is_active` | bool, default true; indexed |
 | `created_by` `updated_by` | nullable FK → `users` |
 | `timestamps` | |

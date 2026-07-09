@@ -1,7 +1,7 @@
 import re
 
 # Columns that MUST have a value.
-REQUIRED = ["customer_code", "year", "name"]
+REQUIRED = ["customer_code", "year", "email", "name"]
 
 # Simple email shape check. Not perfect, but catches obvious bad ones.
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
