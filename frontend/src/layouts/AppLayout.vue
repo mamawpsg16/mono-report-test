@@ -371,6 +371,9 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .page-body {
   flex: 1;
   overflow-y: auto;
+  /* always reserve the vertical scrollbar's gutter so it appearing when data
+     loads doesn't nudge the table sideways (part of the refresh "shake" fix) */
+  scrollbar-gutter: stable;
   background: var(--color-bg);
 }
 </style>

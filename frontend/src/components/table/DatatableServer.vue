@@ -22,18 +22,23 @@
       customize how that column's cells render, e.g. #item-customer_code.
       See https://www.npmjs.com/package/vue3-easy-data-table#slots
     -->
-    <AppDataTable
-      :headers="headers"
-      :items="items"
-      hide-footer
-      :empty-message="emptyMessage"
-      :items-selected="itemsSelected"
-      @update:items-selected="$emit('update:itemsSelected', $event)"
-    >
-      <template v-for="slot in tableSlotNames" #[slot]="scope">
-        <slot :key="slot" :name="slot" v-bind="scope" />
-      </template>
-    </AppDataTable>
+    <!-- min-height reserves roughly one page of rows so the card doesn't
+         collapse-then-grow on the first load (data arrives after mount); this
+         also lets the fixed-column re-measure settle against a stable box -->
+    <div class="table-region">
+      <AppDataTable
+        :headers="headers"
+        :items="items"
+        hide-footer
+        :empty-message="emptyMessage"
+        :items-selected="itemsSelected"
+        @update:items-selected="$emit('update:itemsSelected', $event)"
+      >
+        <template v-for="slot in tableSlotNames" #[slot]="scope">
+          <slot :key="slot" :name="slot" v-bind="scope" />
+        </template>
+      </AppDataTable>
+    </div>
 
     <AppPagination
       :page="page"
@@ -92,6 +97,10 @@ const tableSlotNames = computed(() => Object.keys(slots).filter((name) => name !
 }
 
 .toolbar-actions { display: flex; align-items: center; gap: 8px; }
+
+/* header (38px) + 10 rows (~40px) ≈ one default page; holds the box height
+   steady while the first fetch resolves so the layout doesn't jump */
+.table-region { min-height: 438px; }
 
 @media (max-width: 640px) {
   .card-header {

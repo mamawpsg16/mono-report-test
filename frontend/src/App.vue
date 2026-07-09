@@ -6,8 +6,6 @@
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
-
 :root {
   --color-accent: #1d4ed8;
   --color-accent-hover: #1e40af;

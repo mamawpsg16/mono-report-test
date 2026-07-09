@@ -1,8 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
+// The authed shell (layout + customers view) loads on every session, so eager
+// import it — code-splitting it only adds a post-auth "pop" on refresh. Login
+// and 404 stay lazy since they're rarely on the hot path.
+import AppLayout from '@/layouts/AppLayout.vue'
+import CustomersIndex from '@/views/customers/Index.vue'
 
 const LoginView = () => import('@/views/authentication/LoginView.vue')
-const AppLayout = () => import('@/layouts/AppLayout.vue')
-const CustomersIndex = () => import('@/views/customers/Index.vue')
 const NotFound = () => import('@/views/authentication/NotFound.vue')
 const router = createRouter({
   history: createWebHistory(),
