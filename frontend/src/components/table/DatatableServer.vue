@@ -26,6 +26,7 @@
       :headers="headers"
       :items="items"
       hide-footer
+      :loading="loading"
       :empty-message="emptyMessage"
       :items-selected="itemsSelected"
       @update:items-selected="$emit('update:itemsSelected', $event)"
@@ -62,6 +63,7 @@ defineProps({
   total: { type: Number, required: true },
   headers: { type: Array, required: true },
   items: { type: Array, required: true },
+  loading: { type: Boolean, default: false },
   emptyMessage: { type: String, default: 'No data to display' },
   itemsSelected: { type: Array, default: null },
 })

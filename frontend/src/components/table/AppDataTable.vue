@@ -6,8 +6,9 @@
     :hide-footer="hideFooter"
     :border-cell="borderCell"
     :table-min-height="0"
+    :loading="loading"
     theme-color="#1d4ed8"
-    table-class-name="app-table"
+    :table-class-name="tableClassName"
     :empty-message="emptyMessage"
     :items-selected="itemsSelected"
     @update:items-selected="$emit('update:itemsSelected', $event)"
@@ -28,6 +29,7 @@ const props = defineProps({
   items: { type: Array, required: true },
   rowsPerPage: { type: Number, default: 10 },
   hideFooter: { type: Boolean, default: false },
+  loading: { type: Boolean, default: false },
   borderCell: { type: Boolean, default: true },   // vertical column separators
   emptyMessage: { type: String, default: 'No data to display' },
   // null = no checkbox column (library default); pass an array to enable selection
@@ -47,6 +49,17 @@ defineEmits(['update:itemsSelected'])
 const NO_INTERNAL_PAGINATION = 1000
 const effectiveRowsPerPage = computed(() =>
   props.hideFooter ? NO_INTERNAL_PAGINATION : props.rowsPerPage
+)
+
+// table-min-height is 0 (below) so a short result set doesn't leave dead
+// space under the table -- but that also means a table with zero rows
+// collapses to just its header height, so the library's loading spinner
+// (centered within whatever height the table currently has) ends up
+// squashed near the top instead of centered. Reserve room ONLY for that
+// specific window -- loading with nothing to show yet -- and let it go
+// back to fitting real content the instant data arrives either way.
+const tableClassName = computed(() =>
+  props.loading && props.items.length === 0 ? 'app-table app-table-loading' : 'app-table'
 )
 </script>
 
@@ -96,5 +109,10 @@ const effectiveRowsPerPage = computed(() =>
   --easy-table-scrollbar-color: var(--color-surface-hover);
   --easy-table-scrollbar-thumb-color: var(--color-border-strong);
   --easy-table-scrollbar-corner-color: var(--color-surface-hover);
+}
+
+/* see tableClassName above -- only active while loading with zero rows */
+.app-table-loading {
+  min-height: 240px;
 }
 </style>

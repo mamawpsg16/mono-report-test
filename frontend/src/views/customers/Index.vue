@@ -10,6 +10,7 @@
       :total="total"
       :headers="headers"
       :items="customers"
+      :loading="loading"
       empty-message="No customers found"
       v-model:items-selected="selectedRows"
     >
@@ -105,6 +106,7 @@ const headers = computed(() => [
 ])
 
 const customers = ref([])
+const loading = ref(false)
 const { page, perPage, lastPage, total } = usePagination()
 const showUploadModal = ref(false)
 const showAskModal = ref(false)
@@ -119,12 +121,17 @@ let abortController = null
 
 async function fetchCustomers() {
   abortController?.abort()
-  abortController = new AbortController()
+  // capture the controller THIS call uses -- `abortController` (the shared
+  // module var) gets reassigned the instant a newer call starts, so reading
+  // it back in `finally` would check the wrong (newer) request's state
+  const myController = new AbortController()
+  abortController = myController
+  loading.value = true
 
   try {
     const { data } = await api.get('/api/customers', {
       params: { page: page.value, per_page: perPage.value, search: search.value || undefined },
-      signal: abortController.signal,
+      signal: myController.signal,
     })
     customers.value = data.data
     lastPage.value = data.last_page
@@ -135,6 +142,10 @@ async function fetchCustomers() {
     remeasureColumns()
   } catch (err) {
     if (err.code !== 'ERR_CANCELED') throw err
+  } finally {
+    // a superseded (aborted) request shouldn't flicker the spinner off --
+    // only the request that actually landed should control it
+    if (!myController.signal.aborted) loading.value = false
   }
 }
 
