@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 // import it — code-splitting it only adds a post-auth "pop" on refresh. Login
 // and 404 stay lazy since they're rarely on the hot path.
 import AppLayout from '@/layouts/AppLayout.vue'
+import DashboardIndex from '@/views/dashboard/Index.vue'
 import CustomersIndex from '@/views/customers/Index.vue'
 
 const LoginView = () => import('@/views/authentication/LoginView.vue')
@@ -24,13 +25,19 @@ const router = createRouter({
         {
           path: '',
           name: 'home',
-          component: CustomersIndex,
-          meta: { title: 'Customers' },
+          component: DashboardIndex,
+          meta: { title: 'Dashboard' },
         },
-        { 
+        {
+          path: 'customers',
+          name: 'customers',
+          component: CustomersIndex,
+          meta: { title: 'Customers', permission: 'customers.view' },
+        },
+        {
           path: '/:pathMatch(.*)*',
           name: 'not-found',
-          component: NotFound 
+          component: NotFound
         }
       ],
     },
@@ -39,7 +46,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const { useAuth } = await import('../composables/useAuth')
-  const { isAuthenticated, checked, fetchUser } = useAuth()
+  const { isAuthenticated, checked, fetchUser, can } = useAuth()
 
   if (!checked.value) {
     await fetchUser()
@@ -50,6 +57,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guest && isAuthenticated.value) {
+    return { name: 'home' }
+  }
+
+  if (to.meta.permission && !can(to.meta.permission)) {
     return { name: 'home' }
   }
 })

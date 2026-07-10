@@ -14,6 +14,14 @@
       </div>
       <nav class="sidebar-nav">
         <router-link to="/" class="nav-link" exact-active-class="active">
+          Dashboard
+        </router-link>
+        <router-link
+          v-if="auth.can('customers.view')"
+          to="/customers"
+          class="nav-link"
+          exact-active-class="active"
+        >
           Customers
         </router-link>
       </nav>
