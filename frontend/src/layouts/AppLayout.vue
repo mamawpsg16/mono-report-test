@@ -24,6 +24,14 @@
         >
           Customers
         </router-link>
+        <router-link
+          v-if="auth.can('roles.manage')"
+          to="/users"
+          class="nav-link"
+          exact-active-class="active"
+        >
+          Users
+        </router-link>
       </nav>
     </aside>
 

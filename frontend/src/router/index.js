@@ -8,6 +8,8 @@ import CustomersIndex from '@/views/customers/Index.vue'
 
 const LoginView = () => import('@/views/authentication/LoginView.vue')
 const NotFound = () => import('@/views/authentication/NotFound.vue')
+// Admin/Maintenance screens are off the hot path, so lazy-load them.
+const UsersView = () => import('@/views/admin/UsersView.vue')
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -33,6 +35,12 @@ const router = createRouter({
           name: 'customers',
           component: CustomersIndex,
           meta: { title: 'Customers', permission: 'customers.view' },
+        },
+        {
+          path: 'users',
+          name: 'users',
+          component: UsersView,
+          meta: { title: 'Users', permission: 'roles.manage' },
         },
         {
           path: '/:pathMatch(.*)*',
