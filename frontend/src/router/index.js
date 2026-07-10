@@ -10,6 +10,7 @@ const LoginView = () => import('@/views/authentication/LoginView.vue')
 const NotFound = () => import('@/views/authentication/NotFound.vue')
 // Admin/Maintenance screens are off the hot path, so lazy-load them.
 const UsersView = () => import('@/views/admin/UsersView.vue')
+const RolesView = () => import('@/views/admin/RolesView.vue')
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -41,6 +42,12 @@ const router = createRouter({
           name: 'users',
           component: UsersView,
           meta: { title: 'Users', permission: 'roles.manage' },
+        },
+        {
+          path: 'roles',
+          name: 'roles',
+          component: RolesView,
+          meta: { title: 'Roles', permission: 'roles.manage' },
         },
         {
           path: '/:pathMatch(.*)*',

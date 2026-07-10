@@ -32,6 +32,14 @@
         >
           Users
         </router-link>
+        <router-link
+          v-if="auth.can('roles.manage')"
+          to="/roles"
+          class="nav-link"
+          exact-active-class="active"
+        >
+          Roles
+        </router-link>
       </nav>
     </aside>
 
