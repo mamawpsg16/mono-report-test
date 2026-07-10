@@ -17,5 +17,11 @@ class DatabaseSeeder extends Seeder
                 'password' => \Illuminate\Support\Facades\Hash::make('password'),
             ]
         );
+
+        $this->call([
+            PermissionSeeder::class,
+            RoleSeeder::class,
+            UserRoleSeeder::class,
+        ]);
     }
 }
