@@ -1,8 +1,14 @@
 <template>
-  <router-view />
+  <div class="app-root">
+    <router-view />
+    <ConfirmModal />
+    <ToastHost />
+  </div>
 </template>
 
 <script setup>
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import ToastHost from '@/components/ToastHost.vue'
 </script>
 
 <style>
@@ -30,7 +36,13 @@
   --color-danger-soft: #fef2f2;
   --color-danger-border: #fecaca;
 
-  --color-success: #22c55e;
+  --color-success: #16a34a;
+  --color-success-soft: #f0fdf4;
+  --color-success-border: #bbf7d0;
+
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+  --color-warning-border: #fde68a;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
