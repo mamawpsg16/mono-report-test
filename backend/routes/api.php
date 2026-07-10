@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Http\Request;
@@ -37,6 +38,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/roles', [RoleController::class, 'store']);
         Route::put('/roles/{role}', [RoleController::class, 'update']);
         Route::get('/permissions', [PermissionController::class, 'index']);
+        Route::get('/users', [UserController::class, 'index']);
+        Route::put('/users/{user}', [UserController::class, 'update']);
+        Route::put('/users/{user}/roles', [UserController::class, 'updateRoles']);
     });
 
 });
