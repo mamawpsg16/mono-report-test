@@ -9,13 +9,25 @@ Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
-        return $request->user();
+        $user = $request->user();
+
+        return [
+            ...$user->toArray(),
+            'permissions' => $user->getAllPermissions()->pluck('name'),
+        ];
     });
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
 
-    Route::get('/customers', [CustomerController::class, 'index']);
-    Route::post('/customers/preview', [CustomerController::class, 'preview']);
-    Route::post('/customers/confirm', [CustomerController::class, 'confirm']);
-    Route::post('/customers/ask', [CustomerController::class, 'ask']);
+    Route::get('/customers', [CustomerController::class, 'index'])
+        ->middleware('permission:customers.view');
+
+    Route::post('/customers/ask', [CustomerController::class, 'ask'])
+        ->middleware('permission:customers.view');
+
+    Route::middleware(['permission:customers.create', 'permission:customers.update'])->group(function () {
+        Route::post('/customers/preview', [CustomerController::class, 'preview']);
+        Route::post('/customers/confirm', [CustomerController::class, 'confirm']);
+    });
 });
+
