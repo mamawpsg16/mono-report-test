@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\PermissionController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Http\Request;
@@ -29,5 +31,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/customers/preview', [CustomerController::class, 'preview']);
         Route::post('/customers/confirm', [CustomerController::class, 'confirm']);
     });
+
+    Route::middleware('permission:roles.manage')->group(function () {
+        Route::get('/roles', [RoleController::class, 'index']);
+        Route::post('/roles', [RoleController::class, 'store']);
+        Route::put('/roles/{role}', [RoleController::class, 'update']);
+        Route::get('/permissions', [PermissionController::class, 'index']);
+    });
+
 });
 
