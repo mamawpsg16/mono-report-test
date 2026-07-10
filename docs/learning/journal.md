@@ -55,3 +55,37 @@
   handler already knows how to render as a proper status-coded JSON error
   for API-expecting requests — no custom exception handling needed, same
   mechanism that already turns validation failures into JSON 422s.
+
+## R1 milestone 4 — users admin (role assignment) + confirm/toast infra
+
+> Draft definitions — reword in your own words when you do the understanding
+> review; the point of the journal is *your* phrasing, not mine.
+
+- **The last-admin invariant** — an authorization rule enforced as "the count
+  of `roles.manage` holders must never reach zero," checked before
+  `syncRoles`. Phrased against the *permission*, not the `admin` *role*, so a
+  future admin-capable role still counts — same golden rule as everywhere else
+  (check permissions, not roles). It collapses "don't remove yourself" and
+  "don't remove the last admin" into one condition. See
+  `backend/app/Http/Controllers/Admin/UserController.php` and
+  `docs/security/04-privilege-management.md`.
+- **Self-referential unique on edit** — a `unique:users,email` rule would
+  reject a user for "already having" their own email when you save an unchanged
+  form. `Rule::unique('users','email')->ignore($user->id)` excludes their own
+  row from the check. Classic edit-form gotcha. See `UpdateUserRequest.php`.
+- **List pagination is Laravel, never Python** — adding pagination to the users
+  list was `->get()` → `->paginate()`, hitting Postgres directly via Eloquent.
+  `python-service` only ever handles file parsing + RAG, never ordinary reads —
+  so the customers *and* users lists paginate the same way, Python-free. See
+  `UserController::index` and `CustomerService::listPaginated`.
+- **Module-scoped composable = a singleton service** — `useConfirm`/`useToast`
+  keep state at *module* scope (created once, shared by every importer), and a
+  single host component (`<ConfirmModal>`/`<ToastHost>` in `App.vue`) renders
+  it. Any component calls `confirm()`/`toast.*` like a function without mounting
+  UI; the "TV in the always-on room, remote everywhere" split. One host only —
+  a second would double-bind the same state. See `frontend/src/composables/`.
+- **Promise + async `onConfirm` for in-dialog loading** — `confirm()` returns a
+  promise that resolves on accept/dismiss; passing an async `onConfirm` makes
+  the dialog own the loading spinner and keep itself open to show a thrown
+  server error (e.g. the last-admin 422). That's how "loading while saving"
+  lives on the dialog, not the page button.

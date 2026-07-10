@@ -134,6 +134,17 @@ customer row and its embedding never drift out of sync.
   `pgvector` similarity search + Groq for generation, built by hand (no
   LangChain/LlamaIndex). Vue `views/customers/components/AskPanel.vue` in a
   modal, reached from the Customers toolbar. See the Architecture diagram above.
+- **RBAC users admin** (R1, `roles.manage`-gated): `/users` screen
+  (`views/admin/UsersView.vue`) — server-paginated user list, edit name/email,
+  and a dual-list role transfer picker. Backend `UserController` (paginate +
+  `update` + `updateRoles`) with a **last-admin guard** that blocks removing
+  `roles.manage` from its final holder (`docs/security/04-privilege-management.md`).
+  Role/permission CRUD *endpoints* already exist (`RoleController`,
+  `PermissionController`); the **role-management UI is still to build** — the
+  remaining R1 item.
+- **App-wide confirm dialog + toasts** (`useConfirm`/`useToast` composables,
+  `ConfirmModal`/`ToastHost` hosts in `App.vue`): imperative, promise-based,
+  design-system-native — chosen over SweetAlert2 (`docs/adr/0003-in-app-confirm-toast.md`).
 
 ## Known limitations
 
@@ -190,6 +201,12 @@ hand-rolled). Permission taxonomy = `module.action` grid (`customers.view`,
 app code checks **permissions**, never roles. Role-management admin UI
 (modules-as-rows × actions-as-columns checkbox grid). Menu/route/API all bind
 to the same `module.view` permission — no separate `menu.*` permissions.
+
+**Status:** foundation done (seed, middleware guards, dashboard, users admin +
+role assignment with last-admin guard — see "What's built"). **Remaining:** the
+**role-management UI** (`RolesView` — create a role, tick its permissions via the
+modules×actions grid; endpoints already exist). When it ships it must also guard
+the last-admin invariant on the role-edit path (`docs/backlog.md`).
 
 ### R2 — Customer identity, invitations, mobile-ready auth
 New `customer_accounts` link (one per `customer_code`, not per upload row).

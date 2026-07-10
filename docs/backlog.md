@@ -60,3 +60,26 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   `docs/security/06-secrets-management.md`** — stale, unrelated to this
   feature, noticed while adding `GROQ_API_KEY`. Either write that doc or fix
   the reference (the real security docs are `00`–`03` in `docs/security/`).
+
+## From RBAC users admin, 2026-07-10
+
+- **Guard the last-admin invariant on the role-EDIT path too** — the
+  `UserController` guard blocks removing `roles.manage` from its last holder
+  when assigning roles to a user, but `RoleController::update` can strip
+  `roles.manage` off the `admin` role itself and orphan everyone. Same
+  invariant, different door. **Must ship with the RolesView milestone.** See
+  `docs/security/04-privilege-management.md`.
+- **Last-admin guard is not race-safe** — two concurrent requests each
+  removing a different one of the last two admins can both pass and land
+  zero. Wrap check + `syncRoles` in a row-locked transaction if it ever
+  matters (negligible at current admin count).
+- **Confirm-on-every-save may be too much** — Users confirms both role
+  changes (destructive: can lock out) and plain detail edits (harmless).
+  Consider reserving `confirm()` for destructive actions and letting
+  ordinary saves just toast. UX call, not urgent.
+- **User detail-editing is scope beyond R1** — editing name/email landed as
+  an add-on to the RBAC milestone (user-requested). Keep or split out later;
+  no `password`/`roles` mutation lives there, so it's low-risk as-is.
+- **`useConfirm` has no dialog queue** — a second `confirm()` while one is
+  open overwrites the first's resolver (earlier promise never settles).
+  Fine for one-dialog-at-a-time UI; add a queue if that assumption breaks.
