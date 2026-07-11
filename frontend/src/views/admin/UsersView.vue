@@ -38,10 +38,10 @@
             <UserCog :size="15" :stroke-width="2" />
           </button>
           <button
+            v-if="user.must_change_password"
             class="btn-icon"
-            :disabled="!user.must_change_password"
             aria-label="Resend invitation"
-            :title="user.must_change_password ? 'Resend invitation' : 'User has already set their password'"
+            title="Resend invitation"
             @click="resendInvitation(user)"
           >
             <Send :size="15" :stroke-width="2" />
@@ -412,37 +412,12 @@ function sameMembers(a, b) {
   display: flex;
   gap: 8px;
 }
-.btn-icon {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  border-radius: 6px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--color-text-muted);
-}
-.btn-icon:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
-}
-.btn-icon:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+/* buttons (.btn-icon / .btn-icon.is-danger) come from the global system in App.vue */
 .spinning {
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-/* the deactivate action reads as destructive once a user is active */
-.btn-icon.is-danger:hover:not(:disabled) {
-  border-color: var(--color-danger-border);
-  color: var(--color-danger);
-  background: var(--color-danger-soft);
 }
 
 .status-badge {
@@ -520,43 +495,5 @@ function sameMembers(a, b) {
 .spacer {
   flex: 1;
 }
-.btn-ghost {
-  padding: 9px 16px;
-  border-radius: 7px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-ghost:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-}
-.btn-ghost:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  border-radius: 7px;
-  border: 1px solid var(--color-accent);
-  background: var(--color-accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.btn-primary:hover:not(:disabled) {
-  opacity: 0.88;
-}
-.btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+/* .btn-ghost / .btn-primary come from the global system in App.vue */
 </style>

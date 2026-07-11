@@ -89,31 +89,14 @@ const { state, accept, cancel } = useConfirmDialog()
   margin-top: 22px;
 }
 
-.btn-ghost {
-  padding: 9px 16px;
-  border-radius: 7px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-}
-.btn-ghost:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-}
-.btn-ghost:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* .btn-ghost comes from the global system in App.vue. .btn-confirm stays local:
+   it's the primary action plus a danger variant and a loading spinner. */
 .btn-confirm {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 9px 18px;
-  border-radius: 7px;
+  border-radius: 8px;
   border: 1px solid var(--color-accent);
   background: var(--color-accent);
   color: #fff;

@@ -130,13 +130,9 @@ async function ask() {
 }
 .ask-input:focus { outline: none; border-color: var(--color-accent); }
 
-.btn-primary {
-  padding: 9px 20px; border-radius: 8px; border: none; background: var(--color-accent);
-  cursor: pointer; font-size: 13px; font-weight: 600; color: #fff;
-  font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;
-  min-width: 64px;
-}
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+/* base styles come from the global system in App.vue; keep only the min-width
+   so the button doesn't shrink when its label swaps to the spinner */
+.btn-primary { min-width: 64px; }
 
 .spinner {
   width: 14px; height: 14px;

@@ -336,30 +336,7 @@ function sameMembers(a, b) {
 .access-text { color: var(--color-text-muted); }
 
 .row-actions { display: flex; gap: 8px; }
-.btn-icon {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  border-radius: 8px;
-  width: 32px; height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  color: var(--color-text-muted);
-}
-.btn-icon:hover { background: var(--color-surface-hover); color: var(--color-text); }
-
-.btn-primary {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: 1px solid var(--color-accent);
-  background: var(--color-accent);
-  color: #fff;
-  font-size: 14px; font-weight: 700; font-family: inherit;
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(var(--color-accent-rgb), 0.25), 0 4px 12px rgba(var(--color-accent-rgb), 0.18);
-}
-.btn-primary:hover:not(:disabled) { background: var(--color-accent-hover); }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+/* buttons (.btn-icon / .btn-primary / .btn-ghost) come from the global system in App.vue */
 
 /* --- modal --- */
 .modal-content { padding: 24px 28px; }
@@ -455,11 +432,4 @@ function sameMembers(a, b) {
   border-top: 1px solid var(--color-border-subtle);
 }
 .spacer { flex: 1; }
-.btn-ghost {
-  padding: 10px 20px; border-radius: 10px;
-  border: 1px solid var(--color-border); background: var(--color-surface);
-  color: var(--color-text); font-size: 14px; font-weight: 600; font-family: inherit;
-  cursor: pointer;
-}
-.btn-ghost:hover { background: var(--color-surface-hover); }
 </style>

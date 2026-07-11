@@ -535,17 +535,7 @@ td { padding: 8px 12px; color: var(--color-text-muted); }
 tbody tr { border-bottom: 1px solid var(--color-border-subtle); }
 tbody tr:last-child { border-bottom: none; }
 
-/* Actions */
-.btn-secondary {
-  padding: 9px 20px; border-radius: 8px; border: 1px solid var(--color-border);
-  background: var(--color-surface); cursor: pointer; font-size: 13px; font-weight: 500;
-  color: var(--color-text-muted); font-family: inherit;
-}
-.btn-primary {
-  padding: 9px 22px; border-radius: 8px; border: none; background: var(--color-accent);
-  cursor: pointer; font-size: 13px; font-weight: 600; color: #fff;
-  font-family: inherit; display: flex; align-items: center; gap: 8px;
-}
+/* Actions — .btn-secondary / .btn-primary come from the global system in App.vue */
 
 /* REVIEW */
 .state-review { padding: 10px 30px; display: flex; flex-direction: column; gap: 14px; }

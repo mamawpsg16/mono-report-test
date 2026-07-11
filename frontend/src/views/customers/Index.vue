@@ -166,29 +166,11 @@ onMounted(fetchCustomers)
 <style scoped>
 .customers-index { padding: 24px 36px; }
 
-.btn-primary {
-  padding: 9px 22px; border-radius: 8px; border: none; background: var(--color-accent);
-  cursor: pointer; font-size: 13px; font-weight: 600; color: #fff;
-  font-family: inherit; display: flex; align-items: center; gap: 8px;
-}
-
 @media (max-width: 640px) {
   .customers-index { padding: 16px; }
 }
 
-.btn-secondary {
-  padding: 7px 13px; border-radius: 8px; border: 1px solid var(--color-border);
-  background: var(--color-surface); cursor: pointer; font-size: 12.5px; font-weight: 500;
-  color: var(--color-text); font-family: inherit; display: flex; align-items: center; gap: 6px;
-}
-.btn-secondary:hover { background: var(--color-surface-hover); }
-
-.btn-icon {
-  border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 6px;
-  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--color-text-muted);
-}
-.btn-icon:hover { background: var(--color-surface-hover); color: var(--color-text); }
+/* buttons (.btn-primary / .btn-secondary / .btn-icon) come from the global system in App.vue */
 
 .td-code { font-weight: 500; color: var(--color-text); }
 
