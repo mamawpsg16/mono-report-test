@@ -11,35 +11,62 @@
           </svg>
         </div>
         <span class="brand-name">DataForge</span>
+        <button v-if="isMobile" class="sidebar-close" @click="sidebarOpen = false" aria-label="Close menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
       <nav class="sidebar-nav">
-        <router-link to="/" class="nav-link" exact-active-class="active">
-          Dashboard
-        </router-link>
-        <router-link
-          v-if="auth.can('customers.view')"
-          to="/customers"
-          class="nav-link"
-          exact-active-class="active"
-        >
-          Customers
-        </router-link>
-        <router-link
-          v-if="auth.can('roles.manage')"
-          to="/users"
-          class="nav-link"
-          exact-active-class="active"
-        >
-          Users
-        </router-link>
-        <router-link
-          v-if="auth.can('roles.manage')"
-          to="/roles"
-          class="nav-link"
-          exact-active-class="active"
-        >
-          Roles
-        </router-link>
+        <div class="nav-section">
+          <div class="nav-section-label">General</div>
+          <router-link to="/" class="nav-link" exact-active-class="active">
+            <span class="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
+              </svg>
+            </span>
+            <span class="nav-text">Dashboard</span>
+            <span class="nav-dot"></span>
+          </router-link>
+          <router-link
+            v-if="auth.can('customers.view')"
+            to="/customers"
+            class="nav-link"
+            exact-active-class="active"
+          >
+            <span class="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            <span class="nav-text">Customers</span>
+            <span class="nav-dot"></span>
+          </router-link>
+        </div>
+
+        <div v-if="auth.can('roles.manage')" class="nav-section">
+          <div class="nav-section-label">Administration</div>
+          <router-link to="/users" class="nav-link" exact-active-class="active">
+            <span class="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <span class="nav-text">Users</span>
+            <span class="nav-dot"></span>
+          </router-link>
+          <router-link to="/roles" class="nav-link" exact-active-class="active">
+            <span class="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z"/>
+              </svg>
+            </span>
+            <span class="nav-text">Roles</span>
+            <span class="nav-dot"></span>
+          </router-link>
+        </div>
       </nav>
     </aside>
 
@@ -110,6 +137,13 @@ watch(isMobile, (mobile) => {
   if (!mobile) sidebarOpen.value = false
 })
 
+// On mobile the drawer sits over the content, so it must close itself once a
+// nav link actually navigates — otherwise it lingers over the page you just
+// opened. No-op on desktop, where sidebarOpen is always false.
+watch(() => route.path, () => {
+  sidebarOpen.value = false
+})
+
 const userInitials = computed(() => {
   if (!auth.user.value?.name) return '?'
   return auth.user.value.name
@@ -148,8 +182,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 }
 
 .sidebar {
-  width: 232px;
-  min-width: 232px;
+  width: 248px;
+  min-width: 248px;
   background: var(--color-ink);
   display: flex;
   flex-direction: column;
@@ -203,6 +237,23 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.sidebar-close {
+  margin-left: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+}
+.sidebar-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
 .brand-icon {
   width: 30px;
   height: 30px;
@@ -225,24 +276,74 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   padding: 16px 12px;
   display: flex;
   flex-direction: column;
+  gap: 22px;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
 }
 
+.nav-section-label {
+  padding: 0 12px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
   padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 14.5px;
+  border-radius: 9px;
+  font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   text-decoration: none;
-  display: block;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-link:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-text {
+  flex: 1;
+}
+
+.nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  flex-shrink: 0;
 }
 
 .nav-link.active {
   font-weight: 600;
   color: #fff;
-  background: rgba(var(--color-accent-rgb), 0.35);
+  background: linear-gradient(90deg, var(--color-accent), rgba(var(--color-accent-rgb), 0.82));
+  box-shadow: 0 4px 14px rgba(var(--color-accent-rgb), 0.35);
+}
+
+.nav-link.active .nav-dot {
+  opacity: 0.9;
 }
 
 .main-area {
