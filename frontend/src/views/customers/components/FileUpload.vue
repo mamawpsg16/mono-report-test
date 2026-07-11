@@ -219,7 +219,6 @@ const emit = defineEmits(['imported', 'update:modelValue'])
 const view = ref('idle')
 const file = ref(null)
 const fileName = ref('')
-const previewColumns = ref([])
 const showToast = ref(false)
 const toastMessage = ref('')
 const progressPct = ref(0)
@@ -248,6 +247,22 @@ const COLUMN_LABELS = {
   country: 'Country',
 }
 
+// Preview columns come from the SERVER's parsed rows, so they work for csv AND
+// xlsx alike (the client can't parse an xlsx's binary to read headers). Preferred
+// order first, then any unexpected extra keys.
+const PREFERRED_COLUMN_ORDER = ['customer_code', 'year', 'name', 'email', 'phone', 'address', 'city', 'country']
+const previewColumns = computed(() => {
+  const keys = new Set()
+  for (const row of previewData.value.rows) {
+    for (const key of Object.keys(row)) {
+      if (key !== '_status' && key !== '_changes') keys.add(key)
+    }
+  }
+  const ordered = PREFERRED_COLUMN_ORDER.filter((k) => keys.has(k))
+  const extras = [...keys].filter((k) => !PREFERRED_COLUMN_ORDER.includes(k))
+  return [...ordered, ...extras]
+})
+
 const rowsHeaders = computed(() => [
   { text: 'Status', value: '_status', width: 100 },
   ...previewColumns.value.map((col) => ({ text: COLUMN_LABELS[col] ?? col, value: col })),
@@ -275,7 +290,6 @@ function goIdle() {
   view.value = 'idle'
   file.value = null
   fileName.value = ''
-  previewColumns.value = []
   allParsedRows = []
   totalRows.value = 0
   progressPct.value = 0
@@ -313,7 +327,6 @@ async function handleFile(selected) {
     await parseCSV(selected)
   } else {
     totalRows.value = 0
-    previewColumns.value = []
   }
 
   // Always upload — the server returns real new/update diff AND validation
@@ -328,7 +341,6 @@ async function parseCSV(csvFile) {
   if (lines.length < 2) return
 
   const headers = lines[0].split(',').map((h) => h.trim())
-  previewColumns.value = headers
 
   allParsedRows = lines.slice(1).map((line) => {
     const values = line.split(',')
@@ -479,7 +491,11 @@ function cancelUpload() {
 .file-icon-green { background: #dcfce7; }
 .file-icon-red { background: var(--color-danger-soft); }
 .file-info { flex: 1; min-width: 0; }
-.file-name { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+.file-name {
+  font-size: 13px; font-weight: 600; color: var(--color-ink);
+  /* long filenames must truncate, not overflow under the action buttons */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .file-meta { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
 
 /* Review file bar: label + name left, actions right */
@@ -490,6 +506,15 @@ function cancelUpload() {
   text-transform: uppercase; letter-spacing: 0.6px;
 }
 .review-bar-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+/* Narrow screens: side-by-side leaves no room for the filename, and the
+   buttons end up painted over it. Stack the bar instead. */
+@media (max-width: 560px) {
+  .review-bar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .review-bar-actions .btn-secondary,
+  .review-bar-actions .btn-primary { flex: 1; justify-content: center; text-align: center; }
+  .state-review { padding: 10px 16px; }
+}
 
 .section-label {
   font-size: 10.5px; font-weight: 700; color: var(--color-text-muted);
