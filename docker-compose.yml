@@ -49,9 +49,19 @@ services:
         condition: service_healthy
       python-service:
         condition: service_started
+      mailpit:
+        condition: service_started
     volumes:
       - ./backend:/var/www/html
       - /var/www/html/vendor
+
+  # --- Mailpit: dev mail catcher (SMTP :1025 in-network, web UI :8025) ---
+  # Traps all outgoing mail so nothing reaches real inboxes; read it at :8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      # only the web UI is published; SMTP 1025 stays on the compose network
+      - "${MAILPIT_UI_PORT:-8025}:8025"
 
   # --- Vue SPA dev server (built in Phase 0) ---
   frontend:

@@ -7,6 +7,8 @@ import DashboardIndex from '@/views/dashboard/Index.vue'
 import CustomersIndex from '@/views/customers/Index.vue'
 
 const LoginView = () => import('@/views/authentication/LoginView.vue')
+const ChangePassword = () => import('@/views/authentication/ChangePassword.vue')
+const SetPassword = () => import('@/views/authentication/SetPassword.vue')
 const NotFound = () => import('@/views/authentication/NotFound.vue')
 // Admin/Maintenance screens are off the hot path, so lazy-load them.
 const UsersView = () => import('@/views/admin/UsersView.vue')
@@ -18,6 +20,21 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
+      meta: { guest: true },
+    },
+    {
+      // stands alone (no AppLayout shell): a must-reset user shouldn't see the
+      // nav until they've set a real password
+      path: '/change-password',
+      name: 'change-password',
+      component: ChangePassword,
+      meta: { requiresAuth: true },
+    },
+    {
+      // public: invited users land here from the emailed link (token in query)
+      path: '/set-password',
+      name: 'set-password',
+      component: SetPassword,
       meta: { guest: true },
     },
     {
@@ -61,7 +78,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const { useAuth } = await import('../composables/useAuth')
-  const { isAuthenticated, checked, fetchUser, can } = useAuth()
+  const { isAuthenticated, checked, fetchUser, can, mustChangePassword } = useAuth()
 
   if (!checked.value) {
     await fetchUser()
@@ -71,7 +88,18 @@ router.beforeEach(async (to) => {
     return { name: 'login' }
   }
 
+  // A user still on a temporary password can go ONLY to the reset screen — this
+  // outranks guest/permission handling, so they can't slip into the app first.
+  if (isAuthenticated.value && mustChangePassword.value) {
+    return to.name === 'change-password' ? undefined : { name: 'change-password' }
+  }
+
   if (to.meta.guest && isAuthenticated.value) {
+    return { name: 'home' }
+  }
+
+  // authenticated and no longer required to reset: don't linger on that screen
+  if (to.name === 'change-password') {
     return { name: 'home' }
   }
 

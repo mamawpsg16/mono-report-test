@@ -97,6 +97,17 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        // Invitation links reuse the same token machinery as password resets,
+        // but live longer (48h) since a new user may not act immediately.
+        // `throttle` = min seconds between issuing tokens for a user (anti-spam);
+        // only auto-enforced via the broker's sendResetLink(), which we don't use.
+        'invitations' => [
+            'provider' => 'users',
+            'table' => 'password_reset_tokens',
+            'expire' => 2880,
+            'throttle' => 60,
+        ],
     ],
 
     /*

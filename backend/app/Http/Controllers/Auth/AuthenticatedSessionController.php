@@ -23,6 +23,19 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
+        // Credentials are correct but the account is switched off. We log them
+        // straight back out and tell them plainly it's deactivated. (Note: a
+        // distinct message here does let someone probing the form tell a real-
+        // but-inactive email from a non-existent one — an accepted tradeoff for
+        // a back-office panel where a clear message matters more.)
+        if (! Auth::user()->is_active) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => ['This account has been deactivated. Please contact an administrator.'],
+            ]);
+        }
+
         $request->session()->regenerate();
 
         return response()->json([

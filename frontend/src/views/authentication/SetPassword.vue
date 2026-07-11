@@ -8,44 +8,52 @@
               stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h1 class="login-title">DataForge</h1>
-        <p class="login-subtitle">Sign in to your account</p>
+        <h1 class="login-title">Set your password</h1>
+        <p class="login-subtitle">
+          <template v-if="email">Finish setting up <strong>{{ email }}</strong>.</template>
+          <template v-else>Choose a password to activate your account.</template>
+        </p>
       </div>
 
-      <form class="login-form" @submit.prevent="handleLogin">
+      <!-- link arrived without the bits we need -->
+      <div v-if="!token || !email" class="login-error">
+        This invitation link is invalid or incomplete. Ask an administrator to resend it.
+      </div>
+
+      <form v-else class="login-form" @submit.prevent="handleSubmit">
         <div v-if="errorMessage" class="login-error">
           {{ errorMessage }}
         </div>
 
         <div class="form-group">
-          <label for="email">Email address</label>
-          <input
-            id="email"
-            v-model="form.email"
-            type="email"
-            autocomplete="email"
-            required
-            :disabled="loading"
-            placeholder="admin@dataforge.test"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password">New password</label>
           <input
             id="password"
             v-model="form.password"
             type="password"
-            autocomplete="current-password"
+            autocomplete="new-password"
             required
             :disabled="loading"
-            placeholder="Enter your password"
+            placeholder="At least 8 characters"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password_confirmation">Confirm password</label>
+          <input
+            id="password_confirmation"
+            v-model="form.password_confirmation"
+            type="password"
+            autocomplete="new-password"
+            required
+            :disabled="loading"
+            placeholder="Re-enter your password"
           />
         </div>
 
         <button type="submit" class="btn-login" :disabled="loading">
           <span v-if="loading" class="spinner"></span>
-          <span v-else>Sign in</span>
+          <span v-else>Set password &amp; continue</span>
         </button>
       </form>
     </div>
@@ -54,27 +62,42 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuth } from '@/composables/useAuth'
+import { useRoute, useRouter } from 'vue-router'
+import api from '@/helpers/api'
+import { useToast } from '@/composables/useToast'
 
+const route = useRoute()
 const router = useRouter()
-const auth = useAuth()
+const toast = useToast()
 
-const form = reactive({ email: '', password: '' })
+// the emailed link carries these in the query string
+const token = route.query.token || ''
+const email = route.query.email || ''
+
+const form = reactive({ password: '', password_confirmation: '' })
 const loading = ref(false)
 const errorMessage = ref('')
 
-async function handleLogin() {
+async function handleSubmit() {
   loading.value = true
   errorMessage.value = ''
 
   try {
-    await auth.login(form)
-    router.push({ name: 'home' })
+    // Sanctum stateful POST needs the CSRF cookie first, same as login
+    await api.get('/sanctum/csrf-cookie')
+    await api.post('/api/set-password', {
+      token,
+      email,
+      password: form.password,
+      password_confirmation: form.password_confirmation,
+    })
+    toast.success('Password set. Please sign in.')
+    router.push({ name: 'login' })
   } catch (err) {
     if (err.response?.status === 422) {
       const errors = err.response.data.errors
-      errorMessage.value = errors?.email?.[0] || 'Invalid credentials'
+      errorMessage.value =
+        errors?.token?.[0] || errors?.password?.[0] || errors?.email?.[0] || 'Could not set your password.'
     } else {
       errorMessage.value = 'Something went wrong. Please try again.'
     }

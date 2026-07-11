@@ -5,12 +5,19 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\InvitationController;
+use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Middleware\EnsurePasswordChanged;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
-Route::middleware('auth:sanctum')->group(function () {
+// Public: a newly invited user sets their password from the emailed link. No
+// auth — the token in the request is what authorizes it.
+Route::post('/set-password', [InvitationController::class, 'setPassword']);
+
+Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(function () {
     Route::get('/user', function (Request $request) {
         $user = $request->user();
 
@@ -21,6 +28,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
+
+    // Self-service: any authenticated user (including one still flagged
+    // must_change_password, who has no roles yet) can set their own password.
+    Route::post('/change-password', [PasswordController::class, 'update']);
 
     Route::get('/customers', [CustomerController::class, 'index'])
         ->middleware('permission:customers.view');
@@ -39,8 +50,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/roles/{role}', [RoleController::class, 'update']);
         Route::get('/permissions', [PermissionController::class, 'index']);
         Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users', [UserController::class, 'store']);
         Route::put('/users/{user}', [UserController::class, 'update']);
         Route::put('/users/{user}/roles', [UserController::class, 'updateRoles']);
+        Route::patch('/users/{user}/active', [UserController::class, 'setActive']);
+        Route::post('/users/{user}/resend-invitation', [UserController::class, 'resendInvitation']);
     });
 
 });

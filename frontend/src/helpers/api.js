@@ -9,10 +9,14 @@ const api = axios.create({
   withXSRFToken: true,
 })
 
+// public pages where a 401 is expected (the router's /api/user probe) and must
+// NOT bounce the visitor to the login screen
+const PUBLIC_PATHS = new Set(['/login', '/set-password'])
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && globalThis.location.pathname !== '/login') {
+    if (error.response?.status === 401 && !PUBLIC_PATHS.has(globalThis.location.pathname)) {
       globalThis.location.href = '/login'
     }
     return Promise.reject(error)

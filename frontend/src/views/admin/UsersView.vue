@@ -2,6 +2,7 @@
   <div class="users-view">
     <DatatableServer
       v-model="searchInput"
+      subtitle="Manage accounts, roles, and access."
       search-placeholder="Search users..."
       v-model:page="page"
       v-model:per-page="perPage"
@@ -12,6 +13,22 @@
       :loading="loading"
       empty-message="No users found"
     >
+      <template #actions>
+        <button
+          class="btn-icon"
+          :disabled="loading"
+          aria-label="Refresh list"
+          title="Refresh (pull in users added by others)"
+          @click="fetchUsers"
+        >
+          <RefreshCw :size="15" :stroke-width="2" :class="{ spinning: loading }" />
+        </button>
+        <button class="btn-primary" @click="openCreate">
+          <Plus :size="15" :stroke-width="2" />
+          New user
+        </button>
+      </template>
+
       <template #item-action="user">
         <div class="row-actions">
           <button class="btn-icon" aria-label="Edit user details" @click="openDetails(user)">
@@ -20,9 +37,73 @@
           <button class="btn-icon" aria-label="Manage roles" @click="openRoles(user)">
             <UserCog :size="15" :stroke-width="2" />
           </button>
+          <button
+            class="btn-icon"
+            :disabled="!user.must_change_password"
+            aria-label="Resend invitation"
+            :title="user.must_change_password ? 'Resend invitation' : 'User has already set their password'"
+            @click="resendInvitation(user)"
+          >
+            <Send :size="15" :stroke-width="2" />
+          </button>
+          <button
+            class="btn-icon"
+            :class="{ 'is-danger': user.is_active }"
+            :disabled="user.id === currentUserId"
+            :aria-label="user.is_active ? 'Deactivate user' : 'Activate user'"
+            :title="user.id === currentUserId ? 'You cannot deactivate yourself' : (user.is_active ? 'Deactivate' : 'Activate')"
+            @click="toggleActive(user)"
+          >
+            <Power :size="15" :stroke-width="2" />
+          </button>
         </div>
       </template>
+
+      <template #item-status="user">
+        <span v-if="user.must_change_password" class="status-badge is-pending">Invited</span>
+        <span v-else class="status-badge" :class="user.is_active ? 'is-on' : 'is-off'">
+          {{ user.is_active ? 'Active' : 'Inactive' }}
+        </span>
+      </template>
     </DatatableServer>
+
+    <!-- Create user (invite) -->
+    <AppModal v-model="createOpen" title="New user" max-width="md">
+      <div class="modal-content">
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input v-model.trim="createForm.name" class="field-input" type="text" aria-label="Name" />
+        </label>
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input v-model.trim="createForm.email" class="field-input" type="email" aria-label="Email" />
+        </label>
+        <div class="field">
+          <span class="field-label">Roles</span>
+          <TransferList
+            v-model="createRoles"
+            :options="roleOptions"
+            left-label="Role List"
+            right-label="Assigned Roles"
+            search-placeholder="Search role…"
+            empty-text="No roles"
+          />
+        </div>
+
+        <p class="invite-note">
+          An invitation email with a set-password link is sent to this address. The
+          account stays <strong>Invited</strong> until they set their password.
+        </p>
+
+        <div class="modal-actions">
+          <span class="spacer"></span>
+          <button class="btn-ghost" @click="createOpen = false">Cancel</button>
+          <button class="btn-primary" :disabled="!canCreate || creating" @click="submitCreate">
+            {{ creating ? 'Sending…' : 'Create & send invite' }}
+          </button>
+        </div>
+      </div>
+    </AppModal>
 
     <!-- Edit user details -->
     <AppModal v-model="detailsOpen" title="Edit user" max-width="sm">
@@ -68,8 +149,9 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { Pencil, UserCog } from '@lucide/vue'
+import { Pencil, UserCog, Plus, Power, Send, RefreshCw } from '@lucide/vue'
 import api from '@/helpers/api'
+import { useAuth } from '@/composables/useAuth'
 import { usePagination } from '@/composables/usePagination'
 import { confirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -78,13 +160,18 @@ import AppModal from '@/components/AppModal.vue'
 import TransferList from '@/components/TransferList.vue'
 
 const toast = useToast()
+const auth = useAuth()
+
+// used to block deactivating your own account (the server enforces it too)
+const currentUserId = computed(() => auth.user.value?.id)
 
 // Action leads the row so the row's controls are the first thing scanned; the
 // user's current roles live in the Manage-roles modal, not a list column.
 const headers = [
-  { text: 'Action', value: 'action', width: 110 },
+  { text: 'Action', value: 'action', width: 140 },
   { text: 'Name', value: 'name' },
   { text: 'Email', value: 'email' },
+  { text: 'Status', value: 'status', width: 120 },
 ]
 
 // --- users list (server-paginated, mirrors customers/Index.vue) ---
@@ -139,6 +226,96 @@ onMounted(async () => {
   fetchUsers()
 })
 
+// catalog fed to every transfer list — the same for every user
+const roleOptions = computed(() => allRoles.value.map((r) => ({ value: r.name, label: r.name })))
+
+// --- create user modal ---
+const createOpen = ref(false)
+const createForm = reactive({ name: '', email: '' })
+const createRoles = ref([])
+const creating = ref(false)
+const canCreate = computed(() => createForm.name.trim() && createForm.email.trim())
+
+function openCreate() {
+  createForm.name = ''
+  createForm.email = ''
+  createRoles.value = []
+  creating.value = false
+  createOpen.value = true
+}
+
+async function submitCreate() {
+  creating.value = true
+  try {
+    // store() creates the user, emails the invite, and returns the row
+    const { data } = await api.post('/api/users', {
+      name: createForm.name,
+      email: createForm.email,
+      roles: createRoles.value,
+    })
+    addUserToList(data) // drop the new row in without a refetch
+    toast.success('Invitation sent')
+    createOpen.value = false
+  } catch (err) {
+    const msg =
+      err.response?.data?.errors?.email?.[0] ||
+      err.response?.data?.message ||
+      'Could not create user'
+    toast.error(msg)
+  } finally {
+    creating.value = false
+  }
+}
+
+// insert a freshly created user without a refetch. On page 1 with no active
+// search it belongs at the top (the list is newest-first); anywhere else, sort
+// and pagination would misplace an in-place insert, so refetch instead.
+function addUserToList(user) {
+  if (page.value !== 1 || search.value) {
+    fetchUsers()
+    return
+  }
+  users.value = [user, ...users.value].slice(0, perPage.value)
+  total.value += 1
+  lastPage.value = Math.max(1, Math.ceil(total.value / perPage.value))
+}
+
+// Re-send the invitation link (e.g. it expired or was lost). Only offered for
+// still-pending users; the server rejects it once they've set a password.
+async function resendInvitation(user) {
+  const ok = await confirm({
+    title: 'Resend invitation?',
+    text: `Send a fresh set-password link to ${user.email}? Any previous link stops working.`,
+    confirmText: 'Resend',
+    onConfirm: async () => {
+      await api.post(`/api/users/${user.id}/resend-invitation`)
+    },
+  })
+  if (!ok) return
+  toast.success('Invitation sent')
+}
+
+// --- activate / deactivate ---
+async function toggleActive(user) {
+  const deactivating = user.is_active
+  const ok = await confirm({
+    title: deactivating ? 'Deactivate user?' : 'Activate user?',
+    text: deactivating
+      ? `${user.name} will no longer be able to sign in.`
+      : `${user.name} will be able to sign in again.`,
+    confirmText: deactivating ? 'Deactivate' : 'Activate',
+    // the confirm dialog owns the spinner + surfaces the server's reason
+    // (self / last-admin guard) if onConfirm throws
+    onConfirm: async () => {
+      const { data } = await api.patch(`/api/users/${user.id}/active`, { active: !user.is_active })
+      const row = users.value.find((u) => u.id === user.id)
+      if (row) row.is_active = data.is_active
+    },
+  })
+  if (!ok) return
+  toast.success(deactivating ? 'User deactivated' : 'User activated')
+}
+
 // --- edit user details modal ---
 const detailsOpen = ref(false)
 const editingDetail = ref(null)
@@ -153,7 +330,6 @@ function openDetails(user) {
 
 async function saveDetails() {
   const user = editingDetail.value
-  // the confirm dialog owns the loading spinner + error while onConfirm runs
   const ok = await confirm({
     title: 'Save changes?',
     text: `Update details for ${user.name}?`,
@@ -185,9 +361,6 @@ const rolesTitle = computed(() =>
   editingRoles.value ? `Roles — ${editingRoles.value.name}` : 'Roles'
 )
 
-// catalog fed to the transfer list — the same for every user
-const roleOptions = computed(() => allRoles.value.map((r) => ({ value: r.name, label: r.name })))
-
 const rolesDirty = computed(() => !sameMembers(assignedRoles.value, originalRoles))
 
 function openRoles(user) {
@@ -200,8 +373,6 @@ function openRoles(user) {
 
 async function saveRoles() {
   const user = editingRoles.value
-  // confirm dialog shows the spinner while saving, and surfaces the server's
-  // reason (e.g. the last-admin guard) if onConfirm throws
   const ok = await confirm({
     title: 'Save role changes?',
     text: `Update roles for ${user.name}?`,
@@ -253,9 +424,46 @@ function sameMembers(a, b) {
   cursor: pointer;
   color: var(--color-text-muted);
 }
-.btn-icon:hover {
+.btn-icon:hover:not(:disabled) {
   background: var(--color-surface-hover);
   color: var(--color-text);
+}
+.btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.spinning {
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+/* the deactivate action reads as destructive once a user is active */
+.btn-icon.is-danger:hover:not(:disabled) {
+  border-color: var(--color-danger-border);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-badge.is-on {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+.status-badge.is-off {
+  color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+}
+/* invited but not yet activated (hasn't set their password) */
+.status-badge.is-pending {
+  color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.12);
 }
 
 /* --- modal content wrapper (AppModal's body has no padding of its own) --- */
@@ -263,7 +471,7 @@ function sameMembers(a, b) {
   padding: 22px 24px 24px;
 }
 
-/* --- edit-details fields --- */
+/* --- fields --- */
 .field {
   display: block;
   margin-bottom: 18px;
@@ -290,6 +498,14 @@ function sameMembers(a, b) {
   outline: none;
   border-color: var(--color-accent-border);
   background: var(--color-surface);
+}
+
+/* --- invite hint under the create form --- */
+.invite-note {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: -4px 0 4px;
 }
 
 /* --- shared modal footer: full-width divider, flush to panel edges --- */
@@ -322,6 +538,9 @@ function sameMembers(a, b) {
   cursor: not-allowed;
 }
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 9px 18px;
   border-radius: 7px;
   border: 1px solid var(--color-accent);
@@ -329,6 +548,7 @@ function sameMembers(a, b) {
   color: #fff;
   font-size: 13px;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   transition: opacity 0.15s;
 }

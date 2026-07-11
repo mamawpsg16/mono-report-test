@@ -1,11 +1,15 @@
 import { ref, computed } from 'vue'
-import api from '../helpers/api'
+import api from '@/helpers/api'
 
 const user = ref(null)
 const checked = ref(false)
 
 export function useAuth() {
   const isAuthenticated = computed(() => !!user.value)
+
+  // set for admin-created accounts on a temp password: the router pins them to
+  // the change-password screen until they set a real one (cleared server-side)
+  const mustChangePassword = computed(() => user.value?.must_change_password ?? false)
 
   function can(permission) {
     return user.value?.permissions?.includes(permission) ?? false
@@ -35,5 +39,5 @@ export function useAuth() {
     checked.value = true
   }
 
-  return { user, checked, isAuthenticated, can, fetchUser, login, logout }
+  return { user, checked, isAuthenticated, mustChangePassword, can, fetchUser, login, logout }
 }

@@ -8,46 +8,50 @@
               stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h1 class="login-title">DataForge</h1>
-        <p class="login-subtitle">Sign in to your account</p>
+        <h1 class="login-title">Set your password</h1>
+        <p class="login-subtitle">Choose a new password to finish signing in.</p>
       </div>
 
-      <form class="login-form" @submit.prevent="handleLogin">
+      <form class="login-form" @submit.prevent="handleSubmit">
         <div v-if="errorMessage" class="login-error">
           {{ errorMessage }}
         </div>
 
         <div class="form-group">
-          <label for="email">Email address</label>
-          <input
-            id="email"
-            v-model="form.email"
-            type="email"
-            autocomplete="email"
-            required
-            :disabled="loading"
-            placeholder="admin@dataforge.test"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password">New password</label>
           <input
             id="password"
             v-model="form.password"
             type="password"
-            autocomplete="current-password"
+            autocomplete="new-password"
             required
             :disabled="loading"
-            placeholder="Enter your password"
+            placeholder="At least 8 characters"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password_confirmation">Confirm password</label>
+          <input
+            id="password_confirmation"
+            v-model="form.password_confirmation"
+            type="password"
+            autocomplete="new-password"
+            required
+            :disabled="loading"
+            placeholder="Re-enter your password"
           />
         </div>
 
         <button type="submit" class="btn-login" :disabled="loading">
           <span v-if="loading" class="spinner"></span>
-          <span v-else>Sign in</span>
+          <span v-else>Save password</span>
         </button>
       </form>
+
+      <button class="btn-signout" :disabled="loading" @click="handleLogout">
+        Sign out
+      </button>
     </div>
   </div>
 </template>
@@ -55,32 +59,40 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/helpers/api'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
 const auth = useAuth()
 
-const form = reactive({ email: '', password: '' })
+const form = reactive({ password: '', password_confirmation: '' })
 const loading = ref(false)
 const errorMessage = ref('')
 
-async function handleLogin() {
+async function handleSubmit() {
   loading.value = true
   errorMessage.value = ''
 
   try {
-    await auth.login(form)
+    await api.post('/api/change-password', form)
+    // refresh the user so must_change_password flips false, then the router
+    // lets them into the app
+    await auth.fetchUser()
     router.push({ name: 'home' })
   } catch (err) {
     if (err.response?.status === 422) {
-      const errors = err.response.data.errors
-      errorMessage.value = errors?.email?.[0] || 'Invalid credentials'
+      errorMessage.value = err.response.data.errors?.password?.[0] || 'Invalid password'
     } else {
       errorMessage.value = 'Something went wrong. Please try again.'
     }
   } finally {
     loading.value = false
   }
+}
+
+async function handleLogout() {
+  await auth.logout()
+  router.push({ name: 'login' })
 }
 </script>
 
@@ -208,6 +220,25 @@ async function handleLogin() {
 
 .btn-login:disabled {
   opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-signout {
+  display: block;
+  margin: 18px auto 0;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-signout:hover:not(:disabled) {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+.btn-signout:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
