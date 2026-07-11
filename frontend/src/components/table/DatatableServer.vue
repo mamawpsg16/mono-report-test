@@ -1,7 +1,10 @@
 <template>
   <div class="resource-card">
     <div class="card-header">
-      <p class="card-title">{{ title }}</p>
+      <div class="card-heading">
+        <p v-if="title" class="card-title">{{ title }}</p>
+        <p v-if="subtitle" class="card-subtitle">{{ subtitle }}</p>
+      </div>
       <div class="toolbar-actions">
         <slot name="actions" />
       </div>
@@ -55,6 +58,7 @@ import AppPagination from './AppPagination.vue'
 
 defineProps({
   title: { type: String, required: false, default: '' },
+  subtitle: { type: String, required: false, default: '' },
   modelValue: { type: String, default: '' },
   searchPlaceholder: { type: String, default: 'Search...' },
   page: { type: Number, required: true },
@@ -86,7 +90,10 @@ const tableSlotNames = computed(() => Object.keys(slots).filter((name) => name !
   display: flex; align-items: center; justify-content: space-between;
   margin: 0 -20px 16px; padding: 0 20px 16px; border-bottom: 1px solid var(--color-border-subtle);
 }
+.card-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .card-title { font-size: 21px; font-weight: 700; color: var(--color-ink); letter-spacing: -0.4px; }
+/* topbar already names the module; this is the "what is this list" line */
+.card-subtitle { font-size: 13.5px; color: var(--color-text-muted); }
 
 .table-toolbar {
   display: flex; align-items: center; justify-content: flex-end; gap: 12px;

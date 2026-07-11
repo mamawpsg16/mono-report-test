@@ -1,7 +1,13 @@
 <template>
-  <div class="static-table-card" :class="{ 'is-bare': !title }">
-    <div v-if="title" class="card-header">
-      <p class="card-title">{{ title }}</p>
+  <div class="static-table-card" :class="{ 'is-bare': !title && !subtitle && !$slots.actions }">
+    <div v-if="title || subtitle || $slots.actions" class="card-header">
+      <div class="card-heading">
+        <p v-if="title" class="card-title">{{ title }}</p>
+        <p v-if="subtitle" class="card-subtitle">{{ subtitle }}</p>
+      </div>
+      <div class="toolbar-actions">
+        <slot name="actions" />
+      </div>
     </div>
 
     <div class="table-toolbar">
@@ -11,8 +17,8 @@
     <!-- :key forces a clean remount per page -- the underlying library
          keeps its own internal pagination state and doesn't reliably
          re-slice when handed a pre-paginated items array from outside. -->
-    <AppDataTable :key="page" :headers="headers" :items="pagedItems" hide-footer :empty-message="emptyMessage">
-      <template v-for="(_, slot) in $slots" #[slot]="scope">
+    <AppDataTable :key="page" :headers="headers" :items="pagedItems" hide-footer :loading="loading" :empty-message="emptyMessage">
+      <template v-for="slot in tableSlotNames" #[slot]="scope">
         <slot :key="slot" :name="slot" v-bind="scope" />
       </template>
     </AppDataTable>
@@ -30,19 +36,26 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useSlots } from 'vue'
 import AppDataTable from './AppDataTable.vue'
 import AppPagination from './AppPagination.vue'
-import AppSearchInput from '../form/AppSearchInput.vue'
+import AppSearchInput from '@/components/form/AppSearchInput.vue'
 
 const props = defineProps({
   title: { type: String, default: '' },
+  subtitle: { type: String, default: '' },
   headers: { type: Array, required: true },
   items: { type: Array, required: true }, // full array, already in memory -- this component paginates it locally
+  loading: { type: Boolean, default: false },
   emptyMessage: { type: String, default: 'No data to display' },
   perPageOptions: { type: Array, default: () => [10, 20, 50, 100] },
   searchPlaceholder: { type: String, default: 'Search...' },
 })
+
+// forward every slot straight to AppDataTable (column templates etc) except
+// `actions`, which belongs to the header button row above
+const slots = useSlots()
+const tableSlotNames = computed(() => Object.keys(slots).filter((name) => name !== 'actions'))
 
 const page = ref(1)
 const perPage = ref(10)
@@ -94,16 +107,27 @@ watch([() => props.items, searchText], () => {
 }
 
 .card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: -16px -16px 14px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+.toolbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+@media (max-width: 640px) {
+  .card-header { flex-direction: column; align-items: stretch; }
+  .toolbar-actions { justify-content: center; flex-wrap: wrap; margin-left: 0; }
+}
+
+.card-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .card-title {
   font-size: 15px;
   font-weight: 700;
   color: var(--color-ink);
 }
+/* topbar already names the module; this is the "what is this list" line */
+.card-subtitle { font-size: 13.5px; color: var(--color-text-muted); }
 
 .table-toolbar {
   display: flex; align-items: center; justify-content: flex-end;

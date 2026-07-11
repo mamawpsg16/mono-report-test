@@ -38,6 +38,7 @@ class RoleController extends Controller
 
         $this->guardLastAdmin($role, $newPermissions);
 
+        $role->update(['name' => $request->validated('name')]);
         $role->syncPermissions($newPermissions);
 
         return response()->json($role->load('permissions'));
