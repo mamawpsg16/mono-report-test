@@ -38,7 +38,8 @@ class CustomerService
 
     public function listPaginated(int $perPage = 20, ?string $search = null)
     {
-        return Customer::with(['creator', 'updater'])
+        return Customer::with(['creator', 'updater', 'assignedRepresentative'])
+            ->visibleTo(auth()->user())
             ->when($search, function ($query, $search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('customer_code', 'ilike', "%{$search}%")

@@ -20,5 +20,20 @@ class RoleSeeder extends Seeder
         ]);
 
         $admin->syncPermissions(Permission::all());
+
+        // Field sales rep: works customers + their own visits/tasks, reads reports.
+        // Row-level scoping (own/covered customers only) is enforced by the policy
+        // + Customer::scopeVisibleTo, not by these module permissions.
+        $rep = Role::firstOrCreate([
+            'name' => 'sales_representative',
+            'guard_name' => 'web',
+        ]);
+
+        $rep->syncPermissions([
+            'customers.view', 'customers.update',
+            'visits.view', 'visits.create', 'visits.update', 'visits.delete',
+            'tasks.view', 'tasks.create', 'tasks.update', 'tasks.delete',
+            'reports.view',
+        ]);
     }
 }
