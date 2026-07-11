@@ -161,10 +161,18 @@ customer row and its embedding never drift out of sync.
 
 Record now, revisit when we harden the upload feature:
 
-- **In-memory + row-by-row (still open).** `reader.py` loads the whole file into a
-  list; `upsert_customers` loops row-by-row (one transaction, one commit per
-  request). Fine for small files; revisit chunked reads + batched inserts / `COPY`
-  before large uploads.
+- ~~**Row-by-row writes.**~~ Resolved 2026-07-11 — `upsert_customers` writes the
+  whole file in one `unnest()`-based `INSERT ... ON CONFLICT` (plus
+  `executemany` for embeddings) and only re-embeds rows that are new or
+  actually changed. Measured on 1k rows: 13.5s → 0.26s for an unchanged
+  re-upload; the cost that remains is fastembed itself (~13ms/row, CPU) when
+  rows really did change. Duplicate `customer_code` within one file is now a
+  validation error (a single-statement upsert can't update the same row
+  twice; previously the last duplicate silently won).
+- **In-memory read (still open).** `reader.py` loads the whole file into a
+  list. Fine at the 1k–10k target; revisit chunked reads + `COPY` at 100k+.
+  Also open: a file where ~10k rows are new/changed pays ~130s of embedding,
+  over Laravel's 120s `/process` timeout (`docs/backlog.md`).
 - ~~**xlsx zip-bomb guard.**~~ Resolved — `reader.py::assert_xlsx_safe` rejects
   `.xlsx` files with a suspicious compression ratio or decompressed size before
   openpyxl parses them. Row/cell-count capping remains open (`docs/backlog.md`).

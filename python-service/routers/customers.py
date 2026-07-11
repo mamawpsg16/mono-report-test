@@ -1,4 +1,6 @@
+import logging
 import os
+import time
 from fastapi import APIRouter, HTTPException
 from reader import read_customers_file, UnsafeXlsxError
 from validator import validate_rows
@@ -7,6 +9,8 @@ from rag import answer_question, RagConfigError
 from schemas.customers import ValidateRequest, ProcessRequest, AskRequest
 
 router = APIRouter(prefix="/customers", tags=["customers"])
+
+logger = logging.getLogger(__name__)
 
 BACKEND_STORAGE_ROOT = os.path.realpath(
     os.getenv("BACKEND_STORAGE_PATH", "../backend/storage/app")
@@ -45,13 +49,29 @@ def validate_file(payload: ValidateRequest):
 
 @router.post("/process")
 def process_file(payload: ProcessRequest):
+    # Phase timings: measure before optimizing. This is the request the user
+    # sits and waits on (Laravel calls it synchronously, 120s timeout), so we
+    # keep a permanent log line showing where each second went.
+    started = time.perf_counter()
     rows = read_file_or_400(payload.path)
+    read_done = time.perf_counter()
 
     errors = validate_rows(rows)
+    validate_done = time.perf_counter()
     if errors:
         return {"status": "failed", "processed_rows": 0, "errors": errors}
 
     upsert_customers(rows, payload.original_filename, payload.user_id)
+    finished = time.perf_counter()
+
+    logger.info(
+        "process: rows=%d read=%.3fs validate=%.3fs upsert=%.3fs total=%.3fs",
+        len(rows),
+        read_done - started,
+        validate_done - read_done,
+        finished - validate_done,
+        finished - started,
+    )
     return {"status": "done", "processed_rows": len(rows), "errors": []}
 
 

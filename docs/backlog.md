@@ -40,10 +40,25 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   decompressed *byte size*, not row count. A file with an enormous number of
   thin rows could still pass and be slow to iterate (CPU, not memory).
   Revisit if a real file shows this in practice.
-- **Batched inserts / `COPY` for large files** — `upsert_customers` loops
-  row-by-row and `reader.py` loads the whole file into memory. Fine for the small
-  files we test with; revisit chunked reads + batched `INSERT`/`COPY` when a real
-  file size (name the number then — e.g. >10k rows) justifies it.
+- ~~**Batched inserts / `COPY` for large files**~~ Partially resolved
+  2026-07-11 — `upsert_customers` now writes the whole file in one
+  `unnest()`-based statement (1k rows: 0.2s → 0.04s) and embeddings via
+  `executemany`. Still open for 100k+: `reader.py` loads the whole file into
+  memory; revisit chunked reads + `COPY` when a real file that size shows up.
+
+## From upload perf fix, 2026-07-11
+
+- **First-import embed wall at ~9k new rows** — embedding measured at
+  ~13ms/row (fastembed bge-small, CPU): 10k brand-new rows ≈ 130s of
+  embedding, which blows Laravel's 120s `/process` timeout. Unchanged rows
+  are now skipped, so this only bites imports where most rows are new or
+  changed. Options when it bites: raise the timeout, embed in the background
+  (needs the R2+ queue), or tune fastembed batching/parallelism.
+- **python-service has no automated tests** — the perf rewrite was verified
+  manually. Cases worth locking in when a test harness lands: new-vs-update
+  upsert correctness, customer row ↔ embedding written in one transaction,
+  duplicate `customer_code` in a file rejected at validation, unchanged
+  re-upload skips embedding.
 
 ## From RAG feature (customers /ask), 2026-07-09
 

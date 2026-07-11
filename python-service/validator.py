@@ -10,6 +10,13 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 def validate_rows(rows):
     errors = []   # list of {row, column, message}
 
+    # customer_code must be unique WITHIN the file too: the batched upsert
+    # writes all rows in one statement, and Postgres refuses to update the
+    # same row twice in one statement ("ON CONFLICT DO UPDATE cannot affect
+    # row a second time"). Before this rule, duplicates silently last-won --
+    # rejecting loudly beats cleaning silently.
+    first_seen_line = {}   # customer_code -> line it first appeared on
+
     for index, row in enumerate(rows):
         line = index + 2          # +2 -> header is line 1, data starts line 2
 
@@ -23,7 +30,19 @@ def validate_rows(rows):
                     "message": f"{col} is required",
                 })
 
-        # --- rule 2: year must be an integer ---
+        # --- rule 2: no duplicate customer_code within the file ---
+        code = (row.get("customer_code") or "").strip()
+        if code != "":
+            if code in first_seen_line:
+                errors.append({
+                    "row": line,
+                    "column": "customer_code",
+                    "message": f"duplicate customer_code (first seen on row {first_seen_line[code]})",
+                })
+            else:
+                first_seen_line[code] = line
+
+        # --- rule 3: year must be an integer ---
         year = (row.get("year") or "").strip()
         if year != "" and not year.isdigit():
             errors.append({
@@ -32,7 +51,7 @@ def validate_rows(rows):
                 "message": "year must be a whole number",
             })
 
-        # --- rule 3: email shape (only if provided) ---
+        # --- rule 4: email shape (only if provided) ---
         email = (row.get("email") or "").strip()
         if email != "" and not EMAIL_RE.match(email):
             errors.append({
