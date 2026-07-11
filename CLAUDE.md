@@ -34,13 +34,16 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   (fastembed + pgvector + Groq, hand-built). Upload feature is stable —
   remaining upload items (in-memory + row-by-row upsert) are backlog-level,
   not blocking.
-- Current milestone: **R0 close-out** — see PLAN.md "Roadmap: R0–R4" for the
-  full phase plan (R1 RBAC → R2 identity/invitations → R3 rewards →
-  R4 mobile, in that fixed order). R0 itself: commit RAG feature (done),
-  pin deps (done), roadmap into PLAN.md (done), ADR for the RAG stack
-  (open), delete `sample-data/bomb.xlsx` (open).
-- Next after R0: **R1 — RBAC foundation** (spatie/laravel-permission).
-- Default mode: GUIDE
+- **R1 (RBAC) is DONE**: users admin (list/edit/roles + create-by-invite,
+  deactivate, resend) and roles admin (create/rename + permissions grid), all
+  gated by `roles.manage` with last-admin guards. See PLAN.md "What's built".
+- **R2 (identity/invitations) partly done**: the admin-user invite + mail
+  machinery shipped (Mailpit dev service, `invitations` password broker,
+  `UserInvitation` mail, public `/set-password`). **Remaining R2**: the
+  *customer* side — `customer_accounts`, auto-invite on upload, and mobile
+  bearer-token login (`POST /api/mobile/login`). Mail is synchronous (no queue).
+- Next: finish R2 (customer identity/mobile auth), then **R3 — Rewards module**.
+- Default mode: GUIDE (recent user-admin work was done in DO mode by request).
 - Open questions:
   - `chatgpt_plan.md` at repo root is a **superseded** earlier architecture
     exploration (shared-DB, `/api/imports/*`) — kept for reference, not the

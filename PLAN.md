@@ -135,13 +135,24 @@ customer row and its embedding never drift out of sync.
   LangChain/LlamaIndex). Vue `views/customers/components/AskPanel.vue` in a
   modal, reached from the Customers toolbar. See the Architecture diagram above.
 - **RBAC users admin** (R1, `roles.manage`-gated): `/users` screen
-  (`views/admin/UsersView.vue`) — server-paginated user list, edit name/email,
-  and a dual-list role transfer picker. Backend `UserController` (paginate +
-  `update` + `updateRoles`) with a **last-admin guard** that blocks removing
-  `roles.manage` from its final holder (`docs/security/04-privilege-management.md`).
-  Role/permission CRUD *endpoints* already exist (`RoleController`,
-  `PermissionController`); the **role-management UI is still to build** — the
-  remaining R1 item.
+  (`views/admin/UsersView.vue`) — server-paginated list, edit name/email, a
+  dual-list role transfer picker, plus **create (by invite)**, **activate /
+  deactivate**, and **resend invitation**. Backend `UserController` with a
+  **last-admin guard** on both role removal and deactivation (only *active*
+  admins count) and a self-deactivation block
+  (`docs/security/04-privilege-management.md`).
+- **RBAC roles admin** (R1): `/roles` screen (`views/admin/RolesView.vue`) —
+  create/rename a role and set its permissions via a modules×actions checkbox
+  grid; `RoleController` persists name + `syncPermissions`, guarding the
+  last-admin invariant on the role-edit path.
+- **User invitations + account lifecycle** (R2 identity, pulled forward for
+  admin users): creating a user emails a signed **48h set-password link** (a
+  dedicated `invitations` password broker over `password_reset_tokens`) instead
+  of showing a temp password. The invitee sets their own password on a **public
+  `/set-password`** page (`InvitationController`), then logs in; an **Invited**
+  badge marks pending accounts. Deactivated/pending accounts are refused at
+  login. Dev mail is caught by a **Mailpit** compose service (UI :8025) — real
+  delivery is a `MAIL_*` env swap. See `docs/adr/` (ADR to write).
 - **App-wide confirm dialog + toasts** (`useConfirm`/`useToast` composables,
   `ConfirmModal`/`ToastHost` hosts in `App.vue`): imperative, promise-based,
   design-system-native — chosen over SweetAlert2 (`docs/adr/0003-in-app-confirm-toast.md`).
@@ -202,17 +213,20 @@ app code checks **permissions**, never roles. Role-management admin UI
 (modules-as-rows × actions-as-columns checkbox grid). Menu/route/API all bind
 to the same `module.view` permission — no separate `menu.*` permissions.
 
-**Status:** foundation done (seed, middleware guards, dashboard, users admin +
-role assignment with last-admin guard — see "What's built"). **Remaining:** the
-**role-management UI** (`RolesView` — create a role, tick its permissions via the
-modules×actions grid; endpoints already exist). When it ships it must also guard
-the last-admin invariant on the role-edit path (`docs/backlog.md`).
+**Status: DONE.** Seed, middleware guards, dashboard, users admin (list, edit,
+role assignment, create/deactivate/resend), and the role-management UI
+(`RolesView` — create/rename + permissions grid), all with the last-admin guard
+on the role-edit and deactivation paths — see "What's built".
 
 ### R2 — Customer identity, invitations, mobile-ready auth
-New `customer_accounts` link (one per `customer_code`, not per upload row).
-Introduces queue + mail infra (neither exists yet) to send a signed, expiring
-invitation link on first upload of a new customer. `POST /api/mobile/login`
-issues a Sanctum bearer token for mobile.
+**Partly done (admin-user side).** The invitation + mail machinery now exists:
+Mailpit compose service, an `invitations` password broker, `UserInvitation`
+mail, a public `/set-password` flow, and admin-user invites/resend — see "What's
+built". **Remaining:** the *customer* side — a `customer_accounts` link (one per
+`customer_code`, not per upload row), auto-invite on first upload of a new
+customer, and `POST /api/mobile/login` issuing a Sanctum **bearer** token for
+mobile (still no token issuance today). Note: mail is sent **synchronously**; a
+queue is not yet configured.
 
 ### R3 — Rewards module (web admin side)
 `rewards`, `point_transactions` (ledger), `redemptions`, `announcements`.
