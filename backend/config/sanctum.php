@@ -75,7 +75,12 @@ return [
     */
 
     'middleware' => [
-        'authenticate_session' => Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
+        // authenticate_session (Sanctum's AuthenticateSession) disabled while we
+        // confirm it's the cause of sessions being flushed to guest on refresh
+        // after an account switch. It only adds "log out a user's other sessions
+        // when their password changes" — not relied on today. Re-enable once the
+        // misfire is root-caused if we want that behavior back.
+        // 'authenticate_session' => Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
         'encrypt_cookies' => App\Http\Middleware\EncryptCookies::class,
         'verify_csrf_token' => App\Http\Middleware\VerifyCsrfToken::class,
     ],
