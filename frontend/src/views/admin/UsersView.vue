@@ -216,14 +216,20 @@ watch(searchInput, (value) => {
 watch([page, perPage, search], fetchUsers)
 
 onMounted(async () => {
-  // roles are the same for every user, so fetch the catalog once up front
+  // fire immediately so `loading` flips true before first paint (matches
+  // customers/Index.vue) -- awaiting roles first left a gap where the table
+  // rendered once with loading=false, items=[] ("No users found" flash)
+  // before this ever ran.
+  fetchUsers()
+
+  // roles are the same for every user, so fetch the catalog once up front,
+  // in parallel with the users list rather than blocking it
   try {
     const { data } = await api.get('/api/roles')
     allRoles.value = data
   } catch {
     // non-fatal: the roles modal will just show an empty Role List
   }
-  fetchUsers()
 })
 
 // catalog fed to every transfer list — the same for every user
