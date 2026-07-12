@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SetUserActiveRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateUserRolesRequest;
@@ -119,11 +120,9 @@ class UserController extends Controller
      * Activate or deactivate a user. Deactivating refuses them at login while
      * keeping their row (and its audit references) intact.
      */
-    public function setActive(Request $request, User $user)
+    public function setActive(SetUserActiveRequest $request, User $user)
     {
-        $active = $request->validate([
-            'active' => ['required', 'boolean'],
-        ])['active'];
+        $active = $request->active();
 
         if (! $active) {
             // You can't switch off the account you're currently signed in with.
