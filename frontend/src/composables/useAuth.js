@@ -27,9 +27,17 @@ export function useAuth() {
   }
 
   async function login(credentials) {
+    // Fetch CSRF token cookie (Sanctum SPA session auth step 1). axios's
+    // withXSRFToken:true (see helpers/api.js) then auto-copies the XSRF-TOKEN
+    // cookie into the X-XSRF-TOKEN header on the login POST below.
     await api.get('/sanctum/csrf-cookie')
+
     const { data } = await api.post('/api/login', credentials)
-    await fetchUser()
+
+    // Use the user /api/login already returns instead of an immediate follow-up
+    // GET /api/user (was racing session-cookie propagation on the first login).
+    user.value = data.user
+    checked.value = true
     return data
   }
 
