@@ -98,3 +98,20 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
 - **`useConfirm` has no dialog queue** — a second `confirm()` while one is
   open overwrites the first's resolver (earlier promise never settles).
   Fine for one-dialog-at-a-time UI; add a queue if that assumption breaks.
+
+## From CRM pivot planning, 2026-07-12
+
+- **Coverage (backup-access delegation)** — `Coverage` model/table, and the
+  two `orWhereIn` branches in `Customer::scopeVisibleTo` that grant a
+  covering rep temporary visibility (whole-book or single-customer). Shipped
+  2026-07-11 but isn't in `new__plan.md`'s spec and its own purpose wasn't
+  clear on review — parked rather than kept live. `scopeVisibleTo` is
+  simplified to "admin bypass, else owner-only" in CRM phase P5; the
+  `coverages` table/model/`CustomerPolicy` reference stay in place (dropping
+  the migration is data-destructive) but go unqueried. Revisit only when a
+  real backup-coverage need shows up, and re-derive the requirement from
+  scratch rather than reviving this shape as-is.
+- **GPS on visits (lat/long at time-in/out)** — matches `new__plan.md`'s own
+  "Future Features (Not MVP)" list (GPS Check-in). `Visit.started_at`/
+  `ended_at` ship without location capture. Revisit alongside Territory
+  Management / GPS Check-in if that ever becomes a real requirement.

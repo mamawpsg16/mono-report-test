@@ -1,5 +1,11 @@
 # DataForge CRM
 
+> **Status: product-vision reference, not the operational plan.** PLAN.md's
+> "Roadmap: CRM pivot" is authoritative on what's actually being built and in
+> what order; where they conflict, PLAN.md wins. Kept here because later CRM
+> phases (Visit, VisitPlan, Tasks, Documents, Notifications, Mobile) still
+> need this doc's full spec when their turn comes.
+
 ## Product Vision
 
 DataForge CRM is a modern Customer Relationship Management (CRM) system designed for businesses with field sales representatives.

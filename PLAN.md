@@ -19,6 +19,14 @@ Postgres → UI lists them.
 **CSV customer import is the built feature.** See "Roadmap: R0–R4" for where
 this goes.
 
+**Pivot (2026-07-12):** the project direction changed from "grow this into a
+rewards/points platform" (R3/R4 below) to a **field-sales CRM** — reps visit
+customers, plan their week, chase prospects. Upload/RAG stays exactly as
+shipped, working infrastructure; it's no longer the headline feature going
+forward. Product vision lives in `new__plan.md` (kept as a reference, not
+auto-loaded — see its own status banner); sequencing/what's-actually-being-
+built lives in "Roadmap: CRM pivot (P0–P5)" below, which supersedes R3/R4.
+
 ## Locked decisions
 
 - **Decoupled, Dockerized monorepo.** Runs via `docker compose up`. Services:
@@ -86,22 +94,33 @@ customer row and its embedding never drift out of sync.
 
 | column | notes |
 | --- | --- |
-| `id` | pk |
-| `original_filename` | source file the row came from |
-| `customer_code` | part of natural key |
-| `year` | unsigned smallint, part of natural key |
+| `id` | pk (internal only) |
+| `uuid` | public identifier for URLs/route binding, never the sequential id — `HasPublicUuid` |
+| `original_filename` | source file the row came from; nullable (CRM-created customers won't have one) |
+| `customer_code` | **unique** on its own (was part of a composite key with `year` pre-CRM-pivot) |
+| `year` | unsigned smallint; nullable (CRM-created customers won't have one) |
 | `name` | required |
 | `email` | required (NOT NULL — see migration `2026_07_09_024254`) |
 | `phone` `address` `city` `country` | nullable |
+| `assigned_representative_id` | nullable FK → `users`, `nullOnDelete()` — the owning sales rep (P1) |
+| `notes` | nullable text |
 | `is_active` | bool, default true; indexed |
 | `created_by` `updated_by` | nullable FK → `users` |
 | `timestamps` | |
 
-- **Unique** `(customer_code, year)` — this is the natural key.
-- **Diff rule** (`python-service/customers.py::compute_diff`): incoming rows are
-  matched on `(customer_code, year)`. Existing pair whose compared fields differ =
-  **update**; unseen pair = **new**. `upsert_customers` writes via
-  `INSERT ... ON CONFLICT (customer_code, year) DO UPDATE`.
+- **Unique** `customer_code` alone (CRM pivot migration `2026_07_12_000001`
+  collapsed the old `(customer_code, year)` composite key — one customer = one
+  company now, `year` is just an attribute).
+- **Diff rule** (`python-service/customers.py::compute_diff`, CSV-upload path
+  only): incoming rows are matched on `customer_code` alone. Existing row
+  whose compared fields differ = **update**; unseen code = **new**.
+  `upsert_customers` writes via `INSERT ... ON CONFLICT (customer_code) DO
+  UPDATE`.
+- **`Customer::scopeVisibleTo`** (`backend/app/Models/Customer.php:83-112`):
+  row-level read scoping — admins see everything, a rep sees only customers
+  where `assigned_representative_id = them` (plus temporary Coverage grants,
+  deferred/dormant per `docs/backlog.md` — see CRM pivot P5). Applied in
+  `CustomerService::listPaginated` and reused by `CustomerPolicy`.
 
 `customer_embeddings` (Laravel migration owns this; `pgvector` extension required —
 `db` image is `pgvector/pgvector:pg16`):
@@ -237,12 +256,18 @@ mobile (still no token issuance today). Note: mail is sent **synchronously**; a
 queue is not yet configured.
 
 ### R3 — Rewards module (web admin side)
+**SUPERSEDED 2026-07-12 — the rewards/mobile direction was dropped for a
+field-sales CRM pivot. See "Roadmap: CRM pivot" below.**
+
 `rewards`, `point_transactions` (ledger), `redemptions`, `announcements`.
 Redemption must be race-condition-safe (balance check + ledger debit in one
 transaction, row-locked). Admin UI: Rewards, Points, Announcements views
 gated by R1's permissions.
 
 ### R4 — Mobile (LAST): customer API + Flutter app
+**SUPERSEDED 2026-07-12 — the rewards/mobile direction was dropped for a
+field-sales CRM pivot. See "Roadmap: CRM pivot" below.**
+
 `/api/mobile/*` endpoints (profile, rewards, redemptions, announcements) —
 customers can only ever see their own data. Flutter app: login, set-password,
 points home, rewards list, redeem flow, history. Push notifications/offline/
@@ -250,6 +275,27 @@ app-store release explicitly out of scope for v1.
 
 Mobile: **not started** — blocked on R2's token issuance (tracked in
 `docs/backlog.md`).
+
+## Roadmap: CRM pivot (P0–P5)
+
+Replaces R3/R4 above. Reps visit customers, plan their week, and chase
+prospects; product vision lives in `new__plan.md` (reference only). Two
+things from the CRM groundwork shipped 2026-07-11 (`Coverage`, GPS-on-visits)
+are explicitly deferred — see `docs/backlog.md` "From CRM pivot planning,
+2026-07-12" for why.
+
+| Phase | Delivers | Permission module |
+|---|---|---|
+| **P0 — Doc reconciliation** | This section + `docs/backlog.md` + `new__plan.md` banner + `CLAUDE.md` updates. No code. **Done.** | — |
+| **P1 — Rep assignment on Customer** | Admin-only endpoint + UI to set/clear a customer's `assigned_representative_id`. No new tables — the column, FK, and `Customer::scopeVisibleTo` enforcement already existed; this just adds a way to set it. **Done.** | `roles.manage` (existing, reused as the admin gate) |
+| **P2 — Prospect** | New `prospects` table (name, phone, notes, `created_by`, nullable `converted_customer_id`) + CRUD endpoints + a Prospects list screen + an explicit "Convert to customer" action that creates a real `Customer` row and stamps `converted_customer_id` (Salesforce Lead→Contact pattern — prospect visit history stays on the `Prospect` row, not rewritten). | **New** `prospects.*` (view/create/update/delete) |
+| **P3 — Visit** | New `visits` table: `customer_id` OR `prospect_id` (exactly one, never both/neither), nullable `visit_plan_entry_id`, `started_at` (time-in), nullable `ended_at` (time-out; null = still open). Server-enforced invariant: **at most one open visit per rep**, rejected server-side not just in the UI. Attachments/GPS stay out of scope (see backlog). | `visits.*` (existing, already seeded) |
+| **P4 — VisitPlan / VisitPlanEntry** | `visit_plans` (rep + week) and `visit_plan_entries` (`customer_id` + day-only `planned_date`, no time — "the calendar should be simple"). Prospects can never be plan entries; prospect visits are always ad hoc by construction. Ticking a planned entry sets `Visit.visit_plan_entry_id`. | `visits.*` (reused — a plan entry is a scheduled visit, not a new module) |
+| **P5 — Coverage-simplification cleanup** | Simplify `Customer::scopeVisibleTo` (`backend/app/Models/Customer.php:83-112`) to "admin bypass, else `assigned_representative_id = user.id`" — drop both coverage-grant branches. `coverages` table/model stay (dropping is data-destructive) but go unqueried. | — |
+
+Full file-level detail for each phase gets planned just before it starts
+(this project's "one milestone at a time" rule) — see the Claude Code plan
+history for P0/P1's detailed plan.
 
 ## Verification (end to end)
 
@@ -268,3 +314,14 @@ answer naming the right customer plus a sources list. Ask something
 unrelated, or with an empty `customers` table → expect a graceful "I don't
 know" / "no customer data yet", not a crash or hallucination. Remove
 `GROQ_API_KEY` from `.env` and retry → expect a clean error, not a raw 500.
+
+**CRM pivot P1 (rep assignment):** log in as `admin@dataforge.test` /
+`password` → on Customers, find a row showing "Assigned Rep: Unassigned" →
+click its reassign icon → pick a rep → Save → toast "Representative updated"
+→ row updates in place. Log out, log in as `rep@dataforge.test` / `password`
+→ Customers list shows **only** that rep's assigned customers, and no
+reassign icon appears (permission-gated on `roles.manage`). While still
+logged in as the rep, `PATCH /api/customers/{uuid}/representative` directly
+→ expect `403` (the case a UI-only check wouldn't catch — this rep already
+holds `customers.update`). `php artisan test --filter=CustomerRepAssignmentTest`
+→ all pass.

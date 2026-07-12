@@ -42,12 +42,43 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   `UserInvitation` mail, public `/set-password`). **Remaining R2**: the
   *customer* side — `customer_accounts`, auto-invite on upload, and mobile
   bearer-token login (`POST /api/mobile/login`). Mail is synchronous (no queue).
-- Next: finish R2 (customer identity/mobile auth), then **R3 — Rewards module**.
-- Default mode: GUIDE (recent user-admin work was done in DO mode by request).
+- **CRM pivot (2026-07-12)**: direction changed from the rewards/points
+  roadmap (R3/R4, now superseded) to a **field-sales CRM** — see PLAN.md
+  "Roadmap: CRM pivot (P0–P5)". P0 (doc reconciliation) and P1 (rep
+  assignment on Customer) are done.
+- Next: **P2 — Prospect** (see PLAN.md's CRM pivot roadmap for P2–P5).
+- Default mode: GUIDE (recent user-admin and CRM work was done in DO mode by
+  request).
 - Open questions:
-  - `chatgpt_plan.md` at repo root is a **superseded** earlier architecture
-    exploration (shared-DB, `/api/imports/*`) — kept for reference, not the
-    source of truth. PLAN.md is authoritative. Delete it? (ask before doing.)
+  - `new__plan.md` is the CRM product-vision doc — superseded-but-kept per
+    PLAN.md's doc reconciliation, not auto-imported here (keeps session
+    context lean). Read it directly when a CRM phase needs its full spec.
+
+## Conventions — always follow the stack's best practice
+
+Default to each stack's idiomatic best practice, not ad-hoc shortcuts. The
+established conventions in this codebase (follow these; extend the list when
+a new one is settled):
+
+- **Laravel**: validation lives in **Form Requests** (`app/Http/Requests`),
+  never inline `$request->validate()` in controllers; shared/complex checks
+  become custom Rules (`app/Rules`, e.g. `SalesRepresentative`). Controllers
+  stay thin — business logic goes in services (`CustomerService` pattern).
+  Route-level `permission:*` middleware does the gating; `roles.manage` is
+  the admin gate. Route model binding by `uuid`, never sequential ids
+  (`HasPublicUuid`). Feature tests follow `CustomerScopeTest`'s shape
+  (RefreshDatabase + seeders + plain `Model::create()` helpers, isolated
+  `dataforge_testing` DB).
+- **Vue**: reuse the shared components/composables (`DatatableServer`,
+  `AppModal`, `useConfirm`/`useToast`, `useAuth().can()`); buttons come from
+  the **global** `.btn-*` classes in `App.vue`, never redefined per view.
+  Edit-in-place modals follow `UsersView.vue`'s pattern (row prop, confirm()
+  around the save, toast after, patch the list in place instead of
+  refetching where possible). Nav/routes/UI actions are permission-gated
+  with `auth.can()`.
+- **Python service**: stdlib-first (csv/openpyxl/psycopg), validate at the
+  boundary, reject loudly rather than clean silently, batch DB writes
+  (`unnest`/`executemany`), keep row + embedding writes in one transaction.
 
 ## Project-specific facts
 
