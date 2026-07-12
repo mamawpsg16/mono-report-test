@@ -3,7 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AskCustomersRequest;
+use App\Http\Requests\AssignRepresentativeRequest;
+use App\Http\Requests\BulkAssignRepresentativeRequest;
+use App\Http\Requests\ConfirmImportRequest;
 use App\Http\Requests\StoreImportRequest;
+use App\Models\Customer;
 use App\Services\CustomerService;
 use Illuminate\Http\Request;
 
@@ -37,31 +42,42 @@ class CustomerController extends Controller
         return response()->json($result);
     }
 
-    public function confirm(Request $request)
+    public function confirm(ConfirmImportRequest $request)
     {
-        $request->validate([
-            'stored_path' => 'required|string',
-            'original_filename' => 'required|string',
-        ]);
-
         return response()->json($this->customerService->confirm(
-            $request->input('stored_path'),
-            $request->input('original_filename'),
+            $request->validated('stored_path'),
+            $request->validated('original_filename'),
         ));
     }
 
-    public function ask(Request $request)
+    public function ask(AskCustomersRequest $request)
     {
-        $request->validate([
-            'question' => 'required|string|max:500',
-            'history' => 'array|max:20',
-            'history.*.role' => 'required_with:history|in:user,assistant',
-            'history.*.content' => 'required_with:history|string|max:2000',
-        ]);
-
         return response()->json($this->customerService->ask(
-            $request->input('question'),
-            $request->input('history', []),
+            $request->validated('question'),
+            $request->validated('history') ?? [],
         ));
+    }
+
+    // Admin-only (route sits behind permission:roles.manage). Sets one
+    // customer's owning sales rep; the route binds {customer} by uuid.
+    public function assignRepresentative(AssignRepresentativeRequest $request, Customer $customer)
+    {
+        return response()->json($this->customerService->assignRepresentative(
+            $customer,
+            $request->representativeId(),
+            $request->user()->id,
+        ));
+    }
+
+    // Admin-only bulk version for the list-view "Assign rep" action.
+    public function assignRepresentativeBulk(BulkAssignRepresentativeRequest $request)
+    {
+        $updated = $this->customerService->assignRepresentativeBulk(
+            $request->customerUuids(),
+            $request->representativeId(),
+            $request->user()->id,
+        );
+
+        return response()->json(['updated' => $updated]);
     }
 }

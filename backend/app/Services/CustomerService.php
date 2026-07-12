@@ -55,6 +55,34 @@ class CustomerService
             ->paginate($perPage);
     }
 
+    /**
+     * Set (or clear, with null) the owning sales rep on one customer.
+     * "$repId is a real sales rep" is enforced at the boundary
+     * (AssignRepresentativeRequest / Rules\SalesRepresentative).
+     * Returns the fresh row with the relations the list UI renders.
+     */
+    public function assignRepresentative(Customer $customer, ?int $repId, int $actorId): Customer
+    {
+        $customer->update([
+            'assigned_representative_id' => $repId,
+            'updated_by' => $actorId,
+        ]);
+
+        return $customer->fresh()->load(['creator', 'updater', 'assignedRepresentative']);
+    }
+
+    /**
+     * Same assignment across many customers at once (the list-view bulk
+     * action). One UPDATE, returns how many rows changed.
+     */
+    public function assignRepresentativeBulk(array $uuids, ?int $repId, int $actorId): int
+    {
+        return Customer::whereIn('uuid', $uuids)->update([
+            'assigned_representative_id' => $repId,
+            'updated_by' => $actorId,
+        ]);
+    }
+
     private function validateWithPython(string $storedPath): array
     {
         try {

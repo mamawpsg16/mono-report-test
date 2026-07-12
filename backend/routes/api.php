@@ -55,6 +55,13 @@ Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(functio
         Route::put('/users/{user}/roles', [UserController::class, 'updateRoles']);
         Route::patch('/users/{user}/active', [UserController::class, 'setActive']);
         Route::post('/users/{user}/resend-invitation', [UserController::class, 'resendInvitation']);
+
+        // Rep assignment is admin-only, so it lives in the roles.manage group
+        // (sales_representative already holds customers.update for the CSV
+        // confirm flow, so that permission wouldn't distinguish admin here).
+        // Bulk route first: a literal path before the {customer} one.
+        Route::patch('/customers/assign-representative', [CustomerController::class, 'assignRepresentativeBulk']);
+        Route::patch('/customers/{customer}/representative', [CustomerController::class, 'assignRepresentative']);
     });
 
 });

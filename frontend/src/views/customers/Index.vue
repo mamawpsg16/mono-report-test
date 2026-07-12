@@ -18,6 +18,10 @@
       <template #actions>
         <span v-if="selectedRows.length" class="selection-note">
           {{ selectedRows.length }} selected
+          <button v-if="canReassign" class="btn-secondary" @click="openReassign(selectedRows)">
+            <UserCog :size="13" :stroke-width="2" />
+            Assign rep
+          </button>
           <button class="btn-secondary" @click="selectedRows = []">
             <X :size="13" :stroke-width="2" />
             Clear
@@ -37,12 +41,28 @@
         </button>
       </template>
 
-      <template #item-details="row">
-        <button class="btn-icon" @click="detailRow = row" aria-label="View details">
-          <Eye :size="15" :stroke-width="2" />
-        </button>
+      <template #item-action="row">
+        <div class="row-actions">
+          <button class="btn-icon" @click="detailRow = row" aria-label="View details">
+            <Eye :size="15" :stroke-width="2" />
+          </button>
+          <button
+            v-if="canReassign"
+            class="btn-icon"
+            aria-label="Assign representative"
+            title="Assign representative"
+            @click="openReassign([row])"
+          >
+            <UserCog :size="15" :stroke-width="2" />
+          </button>
+        </div>
       </template>
       <template #item-customer_code="row"><span class="td-code">{{ row.customer_code }}</span></template>
+      <template #item-assigned_representative="row">
+        <span :class="{ 'td-unassigned': !row.assigned_representative }">
+          {{ row.assigned_representative?.name ?? 'Unassigned' }}
+        </span>
+      </template>
       <template #item-creator="row">{{ row.creator?.name ?? '—' }}</template>
       <template #item-updater="row">{{ row.updater?.name ?? '—' }}</template>
     </DatatableServer>
@@ -54,6 +74,8 @@
 
     <DetailModal :row="detailRow" @close="detailRow = null" />
 
+    <ReassignRepModal :rows="reassignRows" @close="reassignRows = []" @saved="onReassignSaved" />
+
     <button class="ask-fab" @click="showAskModal = true" aria-label="Ask about your customers">
       <Sparkles :size="20" :stroke-width="2" />
     </button>
@@ -62,8 +84,9 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { Upload, Filter, Download, Eye, X, Sparkles } from '@lucide/vue'
+import { Upload, Filter, Download, Eye, X, Sparkles, UserCog } from '@lucide/vue'
 import api from '@/helpers/api'
+import { useAuth } from '@/composables/useAuth'
 import { usePagination } from '@/composables/usePagination'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { useColumnFreeze } from '@/composables/useColumnFreeze'
@@ -71,6 +94,7 @@ import DatatableServer from '@/components/table/DatatableServer.vue'
 import FileUpload from './components/FileUpload.vue'
 import AskPanel from './components/AskPanel.vue'
 import DetailModal from './components/DetailModal.vue'
+import ReassignRepModal from './components/ReassignRepModal.vue'
 
 const COLUMNS = {
   customer_code: { text: 'Customer Code', width: 140, fixed: true },
@@ -84,6 +108,11 @@ const COLUMNS = {
 }
 
 const isMobile = useIsMobile()
+const auth = useAuth()
+
+// Assigning reps is admin work; roles.manage is the codebase's admin gate
+// (same permission that guards /api/users, which the modal's rep list needs).
+const canReassign = computed(() => auth.can('roles.manage'))
 
 // freeze the lead columns only when the table actually overflows (see
 // useColumnFreeze). `tableWrap` is the ref on the wrapper div around the table.
@@ -95,13 +124,14 @@ const { container: tableWrap, frozen: columnsFrozen, measure: remeasureColumns }
 const canFreeze = computed(() => columnsFrozen.value && !isMobile.value)
 
 const headers = computed(() => [
-  { text: 'Details', value: 'details', width: 90, fixed: canFreeze.value },
+  { text: 'Action', value: 'action', width: canReassign.value ? 120 : 90, fixed: canFreeze.value },
   ...Object.entries(COLUMNS).map(([value, { text, width, fixed }]) => ({
     text,
     value,
     width,
     fixed: fixed && canFreeze.value,
   })),
+  { text: 'Assigned Rep', value: 'assigned_representative', width: 150 },
   { text: 'Created By', value: 'creator', width: 130 },
   { text: 'Updated By', value: 'updater', width: 130 },
 ])
@@ -115,6 +145,26 @@ const searchInput = ref('')
 const search = ref('')
 const selectedRows = ref([])
 const detailRow = ref(null)
+
+// rows queued for the reassign modal: [one row] from the row action, or the
+// whole selection from the toolbar's bulk action. Empty = modal closed.
+const reassignRows = ref([])
+
+function openReassign(rows) {
+  reassignRows.value = rows
+}
+
+// Single reassign returns the updated row -> patch it in place, no refetch.
+// Bulk returns only a count -> refetch, and drop the now-stale selection.
+function onReassignSaved(updatedCustomer) {
+  if (updatedCustomer) {
+    const index = customers.value.findIndex((c) => c.uuid === updatedCustomer.uuid)
+    if (index !== -1) customers.value[index] = updatedCustomer
+  } else {
+    selectedRows.value = []
+    fetchCustomers()
+  }
+}
 
 
 let searchDebounce = null
@@ -173,6 +223,9 @@ onMounted(fetchCustomers)
 /* buttons (.btn-primary / .btn-secondary / .btn-icon) come from the global system in App.vue */
 
 .td-code { font-weight: 500; color: var(--color-text); }
+.td-unassigned { color: var(--color-text-muted); font-style: italic; }
+
+.row-actions { display: flex; gap: 8px; }
 
 .selection-note {
   display: flex; align-items: center; gap: 8px;
