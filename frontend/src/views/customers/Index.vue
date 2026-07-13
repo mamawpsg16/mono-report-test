@@ -27,15 +27,15 @@
             Clear
           </button>
         </span>
-        <button class="btn-secondary">
+        <!-- <button class="btn-secondary">
           <Filter :size="13" :stroke-width="2" />
           Filter
         </button>
         <button class="btn-secondary">
           <Download :size="13" :stroke-width="2" />
           Export
-        </button>
-        <button class="btn-primary" @click="showUploadModal = true">
+        </button> -->
+        <button class="btn-primary" @click="showUploadModal = true" v-if="canUpload">
           <Upload :size="15" :stroke-width="2" />
           Upload
         </button>
@@ -113,6 +113,8 @@ const auth = useAuth()
 // Assigning reps is admin work; roles.manage is the codebase's admin gate
 // (same permission that guards /api/users, which the modal's rep list needs).
 const canReassign = computed(() => auth.can('roles.manage'))
+const canUpload = computed(() => auth.can('customers.create') && auth.can('customers.update'))
+
 
 // freeze the lead columns only when the table actually overflows (see
 // useColumnFreeze). `tableWrap` is the ref on the wrapper div around the table.
