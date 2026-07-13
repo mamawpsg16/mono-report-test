@@ -70,6 +70,12 @@ async function handleLogin() {
 
   try {
     await auth.login(form)
+    // Ensure user is loaded before redirecting (prevents race condition where
+    // the guard evaluates before user data syncs). If login succeeded but user
+    // didn't load, fail loudly rather than silently hang.
+    if (!auth.user.value) {
+      throw new Error('Failed to load user after login')
+    }
     router.push({ name: 'home' })
   } catch (err) {
     if (err.response?.status === 422) {
