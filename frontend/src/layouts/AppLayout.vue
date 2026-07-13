@@ -58,6 +58,20 @@
             <span class="nav-text">Prospects</span>
             <span class="nav-dot"></span>
           </router-link>
+          <router-link
+            v-if="auth.can('visits.view')"
+            to="/visits"
+            class="nav-link"
+            exact-active-class="active"
+          >
+            <span class="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+            </span>
+            <span class="nav-text">Visits</span>
+            <span class="nav-dot"></span>
+          </router-link>
         </div>
 
         <div v-if="auth.can('roles.manage')" class="nav-section">

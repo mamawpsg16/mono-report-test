@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\User;
+use App\Models\Visit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -50,12 +51,20 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        // At most one open visit per rep (DB-enforced, see the visits
+        // migration), so a single row -- if any -- is always the whole answer.
+        $openVisit = Visit::open()->visibleTo($user)->with('customer')->first();
+
         return response()->json([
             'my_customers_count' => Customer::visibleTo($user)->count(),
             'my_customers' => Customer::visibleTo($user)
                 ->orderBy('name')
                 ->limit(8)
                 ->get(['name', 'city']),
+            'open_visit' => $openVisit ? [
+                'customer_name' => $openVisit->customer->name,
+                'started_at' => $openVisit->started_at,
+            ] : null,
         ]);
     }
 }

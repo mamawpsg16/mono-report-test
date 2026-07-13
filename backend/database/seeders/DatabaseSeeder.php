@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             UserRoleSeeder::class,
             ProspectSeeder::class,
+            VisitSeeder::class,
         ]);
     }
 }

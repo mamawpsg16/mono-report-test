@@ -12,6 +12,7 @@ const SetPassword = () => import('@/views/authentication/SetPassword.vue')
 const NotFound = () => import('@/views/authentication/NotFound.vue')
 // Secondary screens off the hot path, so lazy-load them.
 const ProspectsIndex = () => import('@/views/prospects/Index.vue')
+const VisitsIndex = () => import('@/views/visits/Index.vue')
 const UsersView = () => import('@/views/admin/UsersView.vue')
 const RolesView = () => import('@/views/admin/RolesView.vue')
 const router = createRouter({
@@ -59,7 +60,13 @@ const router = createRouter({
           path: 'prospects',
           name: 'prospects',
           component: ProspectsIndex,
-          meta: { title: 'Prospects', subtitle: 'Track and convert your sales leads.', permission: 'prospects.view' },
+          meta: { title: 'Prospects', subtitle: 'Sales leads your reps are working in the field.', permission: 'prospects.view' },
+        },
+        {
+          path: 'visits',
+          name: 'visits',
+          component: VisitsIndex,
+          meta: { title: 'Visits', subtitle: 'Customer visit history from the field.', permission: 'visits.view' },
         },
         {
           path: 'users',

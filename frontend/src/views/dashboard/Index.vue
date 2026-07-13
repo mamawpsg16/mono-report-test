@@ -6,39 +6,55 @@
       <div class="stat-grid stat-grid--4">
         <div class="stat-card">
           <span class="stat-label">Total Customers</span>
-          <span class="stat-value">{{ loading ? '—' : metrics.total_customers }}</span>
+          <span v-if="loading" class="skeleton skeleton-value"></span>
+          <span v-else class="stat-value">{{ metrics.total_customers }}</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Unassigned Customers</span>
           <div class="stat-inline">
-            <span class="stat-value stat-value--warning">{{ loading ? '—' : metrics.unassigned_customers }}</span>
-            <span v-if="!loading && metrics.unassigned_customers > 0" class="pill pill--warning">needs coverage</span>
+            <span v-if="loading" class="skeleton skeleton-value"></span>
+            <template v-else>
+              <span class="stat-value stat-value--warning">{{ metrics.unassigned_customers }}</span>
+              <span v-if="metrics.unassigned_customers > 0" class="pill pill--warning">needs coverage</span>
+            </template>
           </div>
         </div>
         <div class="stat-card">
           <span class="stat-label">Active Reps</span>
-          <span class="stat-value">{{ loading ? '—' : metrics.active_reps }}</span>
+          <span v-if="loading" class="skeleton skeleton-value"></span>
+          <span v-else class="stat-value">{{ metrics.active_reps }}</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Pending Invitations</span>
-          <span class="stat-value">{{ loading ? '—' : metrics.pending_invitations }}</span>
+          <span v-if="loading" class="skeleton skeleton-value"></span>
+          <span v-else class="stat-value">{{ metrics.pending_invitations }}</span>
         </div>
       </div>
 
       <div class="panel-grid">
         <section class="panel">
           <header class="panel-header">Rep coverage</header>
-          <div v-if="loading" class="row"><span class="row-meta">Loading…</span></div>
-          <div v-else-if="metrics.rep_coverage.length === 0" class="row">
-            <span class="row-meta">No active reps yet</span>
-          </div>
-          <div v-for="rep in metrics.rep_coverage" :key="rep.name" class="row">
-            <div class="row-lead">
-              <span class="avatar">{{ initialsOf(rep.name) }}</span>
-              <span class="row-name">{{ rep.name }}</span>
+          <template v-if="loading">
+            <div v-for="n in 3" :key="n" class="row">
+              <div class="row-lead">
+                <span class="skeleton skeleton-avatar"></span>
+                <span class="skeleton skeleton-text" style="width: 120px"></span>
+              </div>
+              <span class="skeleton skeleton-text" style="width: 70px"></span>
             </div>
-            <span class="row-meta">{{ rep.customers_count }} customers</span>
-          </div>
+          </template>
+          <template v-else>
+            <div v-if="metrics.rep_coverage.length === 0" class="row">
+              <span class="row-meta">No active reps yet</span>
+            </div>
+            <div v-for="rep in metrics.rep_coverage" :key="rep.name" class="row">
+              <div class="row-lead">
+                <span class="avatar">{{ initialsOf(rep.name) }}</span>
+                <span class="row-name">{{ rep.name }}</span>
+              </div>
+              <span class="row-meta">{{ rep.customers_count }} customers</span>
+            </div>
+          </template>
         </section>
 
         <section class="panel">
@@ -55,8 +71,9 @@
       </div>
 
       <p class="dashboard-note">
-        Prospects and Visits metrics roll in here once P2–P4 ship — pipeline
-        size, visits logged this week, unconverted prospects.
+        Weekly visit planning (P4) rolls in here once it ships — pipeline
+        size and unconverted prospects stay mobile-only field metrics (see
+        the Prospects/Visits pages for what's already live).
       </p>
     </template>
 
@@ -65,28 +82,38 @@
       <div class="stat-grid stat-grid--3">
         <div class="stat-card">
           <span class="stat-label">My Customers</span>
-          <span class="stat-value">{{ loading ? '—' : myBook.my_customers_count }}</span>
+          <span v-if="loading" class="skeleton skeleton-value"></span>
+          <span v-else class="stat-value">{{ myBook.my_customers_count }}</span>
         </div>
         <div class="stat-card stat-card--soon">
           <span class="stat-label">Today's Planned Visits</span>
           <span class="stat-soon">Coming in P4</span>
         </div>
-        <div class="stat-card stat-card--soon">
+        <div class="stat-card" :class="{ 'stat-card--soon': !loading && !myBook.open_visit }">
           <span class="stat-label">Open Visit</span>
-          <span class="stat-soon">Coming in P3</span>
+          <span v-if="loading" class="skeleton skeleton-value"></span>
+          <span v-else-if="myBook.open_visit" class="stat-value stat-value--open">{{ myBook.open_visit.customer_name }}</span>
+          <span v-else class="stat-soon">None open</span>
         </div>
       </div>
 
       <section class="panel">
         <header class="panel-header">My customers</header>
-        <div v-if="loading" class="row"><span class="row-meta">Loading…</span></div>
-        <div v-else-if="myBook.my_customers.length === 0" class="row">
-          <span class="row-meta">No customers assigned to you yet</span>
-        </div>
-        <div v-for="c in myBook.my_customers" :key="c.name" class="row">
-          <span class="row-name">{{ c.name }}</span>
-          <span class="row-meta">{{ c.city }}</span>
-        </div>
+        <template v-if="loading">
+          <div v-for="n in 3" :key="n" class="row">
+            <span class="skeleton skeleton-text" style="width: 140px"></span>
+            <span class="skeleton skeleton-text" style="width: 60px"></span>
+          </div>
+        </template>
+        <template v-else>
+          <div v-if="myBook.my_customers.length === 0" class="row">
+            <span class="row-meta">No customers assigned to you yet</span>
+          </div>
+          <div v-for="c in myBook.my_customers" :key="c.name" class="row">
+            <span class="row-name">{{ c.name }}</span>
+            <span class="row-meta">{{ c.city }}</span>
+          </div>
+        </template>
       </section>
 
       <section class="panel">
@@ -101,8 +128,9 @@
       </section>
 
       <p class="dashboard-note">
-        Weekly visit planning (P4) and check-in/check-out (P3) will replace
-        these placeholders — that's the daily-use surface for reps once built.
+        Weekly visit planning (P4) will replace "Today's Planned Visits";
+        visit check-in/out already works from the field (see Visits) — this
+        activity feed itself still needs an events log to show it live.
       </p>
     </template>
   </div>
@@ -129,7 +157,7 @@ const metrics = ref({
 })
 // The signed-in rep's own book of business (their assigned customers). Only the
 // rep board consumes this; admins hit /metrics instead.
-const myBook = ref({ my_customers_count: 0, my_customers: [] })
+const myBook = ref({ my_customers_count: 0, my_customers: [], open_visit: null })
 const loading = ref(true)
 
 onMounted(async () => {
@@ -185,6 +213,31 @@ const repActivity = [
   gap: 16px;
 }
 
+/* --- loading skeleton --- */
+.skeleton {
+  display: inline-block;
+  border-radius: 6px;
+  background: var(--color-border);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+.skeleton-value {
+  width: 56px;
+  height: 30px; /* matches .stat-value's line-height */
+}
+.skeleton-text {
+  height: 13px;
+}
+.skeleton-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
 /* --- stat cards --- */
 .stat-grid { display: grid; gap: 16px; }
 .stat-grid--4 { grid-template-columns: repeat(4, 1fr); }
@@ -211,6 +264,7 @@ const repActivity = [
 .stat-label { font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
 .stat-value { font-size: 30px; font-weight: 800; color: var(--color-ink); letter-spacing: -0.4px; }
 .stat-value--warning { color: var(--color-warning); }
+.stat-value--open { font-size: 20px; color: var(--color-accent); }
 .stat-inline { display: flex; align-items: baseline; gap: 8px; }
 .stat-soon { font-size: 20px; font-weight: 700; color: var(--color-text-muted); }
 
