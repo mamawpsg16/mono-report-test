@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProspectController;
 use App\Http\Controllers\Api\VisitController;
+use App\Http\Controllers\Api\VisitPlanController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -62,6 +63,16 @@ Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(functio
         ->middleware('permission:visits.create');
     Route::patch('/visits/{visit}/finish', [VisitController::class, 'finish'])
         ->middleware('permission:visits.update');
+
+    // VisitPlan (CRM P4). Unlike Prospects/Visits, the web gets real create/
+    // manage here -- new__plan.md puts weekly planning on the web. Reuses
+    // visits.* (a plan entry is a scheduled visit, not a new module).
+    Route::get('/visit-plans', [VisitPlanController::class, 'show'])
+        ->middleware('permission:visits.view');
+    Route::post('/visit-plan-entries', [VisitPlanController::class, 'storeEntry'])
+        ->middleware('permission:visits.create');
+    Route::delete('/visit-plan-entries/{entry}', [VisitPlanController::class, 'destroyEntry'])
+        ->middleware('permission:visits.delete');
 
     Route::middleware(['permission:customers.create', 'permission:customers.update'])->group(function () {
         Route::post('/customers/preview', [CustomerController::class, 'preview']);
