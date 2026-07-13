@@ -13,6 +13,7 @@ const state = reactive({
   confirmText: 'Confirm',
   cancelText: 'Cancel',
   danger: false,
+  alert: false, // acknowledge-only: hides Cancel, backdrop won't dismiss
   loading: false,
   error: '',
 })
@@ -23,6 +24,9 @@ let onConfirm = null
 /**
  * Open the dialog. Options:
  *   title, text, confirmText, cancelText, danger (bool)
+ *   alert: acknowledge-only dialog (bool). Hides Cancel and disables
+ *     backdrop-dismiss, so the only way out is the confirm button — for
+ *     one-way notices like an expired session. Resolves true on acknowledge.
  *   html: optional rich body (like SweetAlert2's `html`). Rendered with v-html,
  *     so pass ONLY trusted/hard-coded markup — never an unescaped user value
  *     (role name, email, …) or it's an XSS hole. Use `text` for dynamic values.
@@ -41,6 +45,7 @@ export function confirm(options = {}) {
   state.confirmText = options.confirmText ?? 'Confirm'
   state.cancelText = options.cancelText ?? 'Cancel'
   state.danger = options.danger ?? false
+  state.alert = options.alert ?? false
   onConfirm = options.onConfirm ?? null
 
   return new Promise((resolve) => {

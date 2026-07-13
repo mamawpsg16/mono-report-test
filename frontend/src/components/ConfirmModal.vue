@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="confirm-fade">
-      <div v-if="state.open" class="confirm-backdrop" @click.self="cancel">
+      <div v-if="state.open" class="confirm-backdrop" @click.self="!state.alert && cancel()">
         <div class="confirm-panel" :class="{ danger: state.danger }">
           <p class="confirm-title">{{ state.title }}</p>
 
@@ -12,7 +12,7 @@
           <p v-if="state.error" class="confirm-error">{{ state.error }}</p>
 
           <div class="confirm-actions">
-            <button class="btn-ghost" :disabled="state.loading" @click="cancel">
+            <button v-if="!state.alert" class="btn-ghost" :disabled="state.loading" @click="cancel">
               {{ state.cancelText }}
             </button>
             <button
