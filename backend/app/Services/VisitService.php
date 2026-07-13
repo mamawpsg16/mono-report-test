@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\Visit;
+use App\Models\VisitPlanEntry;
 use Illuminate\Validation\ValidationException;
 
 class VisitService
@@ -40,9 +41,28 @@ class VisitService
         $visit->customer_id = $customer->id;
         $visit->representative_id = $representative->id;
         $visit->started_at = now();
+        $visit->visit_plan_entry_id = $this->matchPlanEntry($customer, $representative)?->id;
         $visit->save();
 
         return $visit->load(['customer', 'representative']);
+    }
+
+    /**
+     * The planned entry this visit fulfils, if any -- automatic, no manual
+     * "tick" UI on web or mobile (see PLAN.md's P4 note). Matches on this
+     * rep's plan, this customer, and today's date; excludes an entry another
+     * visit already claimed so two visits can never point at the same plan
+     * entry (would corrupt a future planned-vs-actual report).
+     */
+    private function matchPlanEntry(Customer $customer, User $representative): ?VisitPlanEntry
+    {
+        return VisitPlanEntry::whereHas('visitPlan', function ($query) use ($representative) {
+            $query->where('representative_id', $representative->id);
+        })
+            ->where('customer_id', $customer->id)
+            ->whereDate('planned_date', now()->toDateString())
+            ->whereDoesntHave('visit')
+            ->first();
     }
 
     public function finish(Visit $visit, ?string $notes = null): Visit

@@ -29,6 +29,14 @@ class VisitPlanEntry extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    // The Visit that fulfilled this planned entry, if any -- set automatically
+    // by VisitService::start() when a started visit matches this entry's
+    // customer/day, never set manually (no tick UI, web or mobile).
+    public function visit()
+    {
+        return $this->hasOne(Visit::class);
+    }
+
     public function deletedBy()
     {
         return $this->belongsTo(User::class, 'deleted_by');

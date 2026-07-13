@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\Visit;
+use App\Models\VisitPlan;
+use App\Models\VisitPlanEntry;
+use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
@@ -64,6 +67,22 @@ class VisitAccessTest extends TestCase
         $visit->save();
 
         return $visit;
+    }
+
+    private function planEntryFor(User $representative, Customer $customer, string $plannedDate): VisitPlanEntry
+    {
+        $plan = VisitPlan::firstOrCreate([
+            'representative_id' => $representative->id,
+            'week_start_date' => Carbon::parse($plannedDate)->startOfWeek(Carbon::MONDAY)->toDateString(),
+        ]);
+
+        $entry = new VisitPlanEntry();
+        $entry->visit_plan_id = $plan->id;
+        $entry->customer_id = $customer->id;
+        $entry->planned_date = $plannedDate;
+        $entry->save();
+
+        return $entry;
     }
 
     public function test_admin_sees_every_visit(): void
@@ -174,5 +193,87 @@ class VisitAccessTest extends TestCase
             ->assertForbidden();
 
         $this->assertTrue($visit->fresh()->isOpen());
+    }
+
+    public function test_starting_a_visit_links_a_matching_planned_entry_for_today(): void
+    {
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+        $entry = $this->planEntryFor($rep, $customer, now()->toDateString());
+
+        $this->actingAs($rep)
+            ->postJson('/api/visits', ['customer_id' => $customer->id])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('visits', [
+            'customer_id' => $customer->id,
+            'visit_plan_entry_id' => $entry->id,
+        ]);
+    }
+
+    public function test_starting_a_visit_does_not_link_an_entry_planned_for_a_different_day(): void
+    {
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+        $this->planEntryFor($rep, $customer, now()->addDay()->toDateString());
+
+        $this->actingAs($rep)
+            ->postJson('/api/visits', ['customer_id' => $customer->id])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('visits', [
+            'customer_id' => $customer->id,
+            'visit_plan_entry_id' => null,
+        ]);
+    }
+
+    public function test_starting_a_visit_does_not_link_another_reps_planned_entry(): void
+    {
+        $repA = $this->user('a@t.test', 'sales_representative');
+        $repB = $this->user('b@t.test', 'sales_representative');
+        $customer = $this->customerFor($repA, 'C1');
+        $this->planEntryFor($repB, $customer, now()->toDateString());
+
+        $this->actingAs($repA)
+            ->postJson('/api/visits', ['customer_id' => $customer->id])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('visits', [
+            'customer_id' => $customer->id,
+            'visit_plan_entry_id' => null,
+        ]);
+    }
+
+    public function test_starting_a_visit_does_not_relink_an_entry_already_claimed_by_another_visit(): void
+    {
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+        $entry = $this->planEntryFor($rep, $customer, now()->toDateString());
+
+        $claimed = $this->visitFor($rep, $customer, open: false);
+        $claimed->visit_plan_entry_id = $entry->id;
+        $claimed->save();
+
+        $this->actingAs($rep)
+            ->postJson('/api/visits', ['customer_id' => $customer->id])
+            ->assertCreated();
+
+        $second = Visit::open()->where('customer_id', $customer->id)->firstOrFail();
+        $this->assertNull($second->visit_plan_entry_id);
+    }
+
+    public function test_starting_a_visit_leaves_visit_plan_entry_id_null_when_nothing_planned(): void
+    {
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+
+        $this->actingAs($rep)
+            ->postJson('/api/visits', ['customer_id' => $customer->id])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('visits', [
+            'customer_id' => $customer->id,
+            'visit_plan_entry_id' => null,
+        ]);
     }
 }
