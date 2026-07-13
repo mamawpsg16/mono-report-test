@@ -10,7 +10,8 @@ const LoginView = () => import('@/views/authentication/LoginView.vue')
 const ChangePassword = () => import('@/views/authentication/ChangePassword.vue')
 const SetPassword = () => import('@/views/authentication/SetPassword.vue')
 const NotFound = () => import('@/views/authentication/NotFound.vue')
-// Admin/Maintenance screens are off the hot path, so lazy-load them.
+// Secondary screens off the hot path, so lazy-load them.
+const ProspectsIndex = () => import('@/views/prospects/Index.vue')
 const UsersView = () => import('@/views/admin/UsersView.vue')
 const RolesView = () => import('@/views/admin/RolesView.vue')
 const router = createRouter({
@@ -46,25 +47,31 @@ const router = createRouter({
           path: '',
           name: 'home',
           component: DashboardIndex,
-          meta: { title: 'Dashboard' },
+          meta: { title: 'Dashboard', subtitle: 'Overview of your workspace.' },
         },
         {
           path: 'customers',
           name: 'customers',
           component: CustomersIndex,
-          meta: { title: 'Customers', permission: 'customers.view' },
+          meta: { title: 'Customers', subtitle: 'Browse, search, and import your customer records.', permission: 'customers.view' },
+        },
+        {
+          path: 'prospects',
+          name: 'prospects',
+          component: ProspectsIndex,
+          meta: { title: 'Prospects', subtitle: 'Track and convert your sales leads.', permission: 'prospects.view' },
         },
         {
           path: 'users',
           name: 'users',
           component: UsersView,
-          meta: { title: 'Users', permission: 'roles.manage' },
+          meta: { title: 'Users', subtitle: 'Manage accounts, roles, and access.', permission: 'roles.manage' },
         },
         {
           path: 'roles',
           name: 'roles',
           component: RolesView,
-          meta: { title: 'Roles', permission: 'roles.manage' },
+          meta: { title: 'Roles', subtitle: 'Manage roles and the permissions each one grants.', permission: 'roles.manage' },
         },
         {
           path: '/:pathMatch(.*)*',

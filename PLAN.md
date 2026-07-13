@@ -291,11 +291,24 @@ things from the CRM groundwork shipped 2026-07-11 (`Coverage`, GPS-on-visits)
 are explicitly deferred — see `docs/backlog.md` "From CRM pivot planning,
 2026-07-12" for why.
 
+**Web vs mobile surface split (decided 2026-07-13).** Both frontends share one
+REST API, so features are built API-first and each surface renders the screens
+that suit it:
+- **Web (Vue) = view · report · plan · admin** — browsing, reporting, weekly
+  planning, and admin management (assign reps, users, roles).
+- **Mobile (Flutter, not started) = field execution** — capturing prospects,
+  running the Visit Workflow (check-in/out, notes, photos), offline.
+
+So for **field-activity data (prospects, visits), the web shows and plans it;
+the mobile does it.** This matches `new__plan.md`, where weekly planning is a
+web feature but the Visit Workflow lives on mobile and syncs back to the web.
+Mobile is blocked on bearer-token auth (R2 leftover) and isn't started.
+
 | Phase | Delivers | Permission module |
 |---|---|---|
 | **P0 — Doc reconciliation** | This section + `docs/backlog.md` + `new__plan.md` banner + `CLAUDE.md` updates. No code. **Done.** | — |
 | **P1 — Rep assignment on Customer** | Admin-only endpoint + UI to set/clear a customer's `assigned_representative_id`. No new tables — the column, FK, and `Customer::scopeVisibleTo` enforcement already existed; this just adds a way to set it. **Done.** | `roles.manage` (existing, reused as the admin gate) |
-| **P2 — Prospect** | New `prospects` table (name, phone, notes, `created_by`, nullable `converted_customer_id`) + CRUD endpoints + a Prospects list screen + an explicit "Convert to customer" action that creates a real `Customer` row and stamps `converted_customer_id` (Salesforce Lead→Contact pattern — prospect visit history stays on the `Prospect` row, not rewritten). | **New** `prospects.*` (view/create/update/delete) |
+| **P2 — Prospect** | New `prospects` table + **full CRUD API** (`ProspectController`/`ProspectService`, `Prospect::scopeVisibleTo` + `ProspectPolicy` for per-row ownership on update/delete). Also relaxed `customers.customer_code`/`email`/`original_filename` to nullable so CRM-native customers are valid (ADR 0004). **Web = view/report only** (a read-only Prospects list). **Creating/editing/deleting a prospect, and converting one to a customer, are field actions deferred to the mobile app** (API is ready; Lead→Contact convert — create a `Customer`, stamp `converted_customer_id`, keep the prospect row — will live on mobile). **Backend + web view done 2026-07-13.** | **New** `prospects.*` (view/create/update/delete) |
 | **P3 — Visit** | New `visits` table: `customer_id` OR `prospect_id` (exactly one, never both/neither), nullable `visit_plan_entry_id`, `started_at` (time-in), nullable `ended_at` (time-out; null = still open). Server-enforced invariant: **at most one open visit per rep**, rejected server-side not just in the UI. Attachments/GPS stay out of scope (see backlog). | `visits.*` (existing, already seeded) |
 | **P4 — VisitPlan / VisitPlanEntry** | `visit_plans` (rep + week) and `visit_plan_entries` (`customer_id` + day-only `planned_date`, no time — "the calendar should be simple"). Prospects can never be plan entries; prospect visits are always ad hoc by construction. Ticking a planned entry sets `Visit.visit_plan_entry_id`. | `visits.*` (reused — a plan entry is a scheduled visit, not a new module) |
 | **P5 — Coverage-simplification cleanup** | Simplify `Customer::scopeVisibleTo` (`backend/app/Models/Customer.php:83-112`) to "admin bypass, else `assigned_representative_id = user.id`" — drop both coverage-grant branches. `coverages` table/model stay (dropping is data-destructive) but go unqueried. | — |
