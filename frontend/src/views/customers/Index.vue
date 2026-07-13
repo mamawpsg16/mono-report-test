@@ -3,7 +3,7 @@
     <div ref="tableWrap">
     <DatatableServer
       v-model="searchInput"
-      subtitle="Browse, search, and import your customer records."
+      :title="$route.meta.title"
       search-placeholder="Search customers..."
       v-model:page="page"
       v-model:per-page="perPage"

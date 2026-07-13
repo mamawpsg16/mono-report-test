@@ -92,7 +92,7 @@ const tableSlotNames = computed(() => Object.keys(slots).filter((name) => name !
 }
 .card-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .card-title { font-size: 21px; font-weight: 700; color: var(--color-ink); letter-spacing: -0.4px; }
-/* topbar already names the module; this is the "what is this list" line */
+/* optional "what is this list" line under the card title */
 .card-subtitle { font-size: 13.5px; color: var(--color-text-muted); }
 
 .table-toolbar {

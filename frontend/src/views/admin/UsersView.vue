@@ -2,7 +2,7 @@
   <div class="users-view">
     <DatatableServer
       v-model="searchInput"
-      subtitle="Manage accounts, roles, and access."
+      :title="$route.meta.title"
       search-placeholder="Search users..."
       v-model:page="page"
       v-model:per-page="perPage"

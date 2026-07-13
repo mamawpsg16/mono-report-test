@@ -7,7 +7,7 @@
       :headers="listHeaders"
       :items="roles"
       :loading="loading"
-      subtitle="Manage roles and the permissions each one grants."
+      :title="$route.meta.title"
       search-placeholder="Search roles..."
       empty-message="No roles found"
     >

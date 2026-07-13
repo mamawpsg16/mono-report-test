@@ -126,7 +126,7 @@ watch([() => props.items, searchText], () => {
   font-weight: 700;
   color: var(--color-ink);
 }
-/* topbar already names the module; this is the "what is this list" line */
+/* optional "what is this list" line under the card title */
 .card-subtitle { font-size: 13.5px; color: var(--color-text-muted); }
 
 .table-toolbar {
