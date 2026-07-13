@@ -16,6 +16,7 @@ class PermissionSeeder extends Seeder
     {
         $modules = [
             'customers',
+            'prospects',
             'visits',
             'tasks',
             'reports',

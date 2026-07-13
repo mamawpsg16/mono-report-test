@@ -115,3 +115,16 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   "Future Features (Not MVP)" list (GPS Check-in). `Visit.started_at`/
   `ended_at` ship without location capture. Revisit alongside Territory
   Management / GPS Check-in if that ever becomes a real requirement.
+
+## From CRM pivot P2 (prospects), 2026-07-13
+
+- **Import↔CRM customer duplication** — since `customer_code` is now nullable
+  (ADR 0004), a CRM-created customer (converted prospect, no code) won't
+  auto-match a later CSV import row for the same real company on
+  `ON CONFLICT (customer_code)` → a duplicate customer that needs manual
+  reconciliation. Acceptable now; revisit with a customer merge/dedup feature
+  if it becomes a real operational pain.
+- **`customer_code` column display for CRM customers** — most CRM-created
+  customers will show a blank Customer Code on the list. Consider
+  de-emphasizing/hiding that column (or showing "—") for null codes; a
+  frontend display choice, no DB impact.

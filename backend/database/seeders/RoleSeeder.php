@@ -31,6 +31,7 @@ class RoleSeeder extends Seeder
 
         $rep->syncPermissions([
             'customers.view', 'customers.update',
+            'prospects.view', 'prospects.create', 'prospects.update', 'prospects.delete',
             'visits.view', 'visits.create', 'visits.update', 'visits.delete',
             'tasks.view', 'tasks.create', 'tasks.update', 'tasks.delete',
             'reports.view',

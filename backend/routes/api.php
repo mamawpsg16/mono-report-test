@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ProspectController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -38,6 +39,17 @@ Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(functio
     // is the module gate; the data itself is scoped per-rep in the controller.
     Route::get('/dashboard/my-book', [DashboardController::class, 'myBook'])
         ->middleware('permission:customers.view');
+
+    // Prospects (CRM pivot P2). Per-action permission gates; per-row ownership
+    // is enforced by ProspectPolicy on update/delete. {prospect} binds by uuid.
+    Route::get('/prospects', [ProspectController::class, 'index'])
+        ->middleware('permission:prospects.view');
+    Route::post('/prospects', [ProspectController::class, 'store'])
+        ->middleware('permission:prospects.create');
+    Route::put('/prospects/{prospect}', [ProspectController::class, 'update'])
+        ->middleware('permission:prospects.update');
+    Route::delete('/prospects/{prospect}', [ProspectController::class, 'destroy'])
+        ->middleware('permission:prospects.delete');
 
     Route::middleware(['permission:customers.create', 'permission:customers.update'])->group(function () {
         Route::post('/customers/preview', [CustomerController::class, 'preview']);
