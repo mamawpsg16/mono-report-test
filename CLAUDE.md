@@ -44,15 +44,54 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   bearer-token login (`POST /api/mobile/login`). Mail is synchronous (no queue).
 - **CRM pivot (2026-07-12)**: direction changed from the rewards/points
   roadmap (R3/R4, now superseded) to a **field-sales CRM** — see PLAN.md
-  "Roadmap: CRM pivot (P0–P5)". P0 (doc reconciliation) and P1 (rep
-  assignment on Customer) are done.
-- Next: **P2 — Prospect** (see PLAN.md's CRM pivot roadmap for P2–P5).
+  "Roadmap: CRM pivot (P0–P5)". P0–P3 are **done**: P0 (doc reconciliation),
+  P1 (rep assignment on Customer), **P2 (Prospect)**, **P3 (Visit)**.
+- **Web-vs-mobile split (decided 2026-07-13, see PLAN.md's CRM roadmap
+  intro)**: web = view · report · plan · admin; mobile (Flutter, not started)
+  = field execution. P2/P3 shipped **backend full CRUD API + web view-only**;
+  creating/editing prospects and starting/finishing visits are mobile-only
+  actions (API is ready, waiting on the mobile app). **P4 breaks this
+  pattern on purpose** — per `new__plan.md`'s "Weekly Coverage Plan" section,
+  planning is a **web** feature, so P4's web screen gets real create/manage,
+  not just viewing.
+- **Next: P4 — VisitPlan / VisitPlanEntry — IN PROGRESS, schema-only,
+  picks up here:**
+  - Done: 3 migrations committed (`2026_07_14_000001_create_visit_plans_table`,
+    `..._000002_create_visit_plan_entries_table`,
+    `..._000003_add_visit_plan_entry_id_to_visits_table`) — `visit_plans`
+    (representative_id + week_start_date, unique per rep/week),
+    `visit_plan_entries` (visit_plan_id + customer_id + planned_date, unique
+    triple, day-only per the vision doc), and the `visits.visit_plan_entry_id`
+    FK deferred from P3 (now added since its target table exists — this
+    codebase never leaves a column FK-less).
+  - **NOT YET DONE, first steps next session**: (1) run
+    `docker compose exec backend php artisan migrate` and verify the 3 new
+    tables/columns with `\d visit_plans` / `\d visit_plan_entries` / `\d visits`
+    — **these migrations were never run or verified this session**; (2)
+    `VisitPlan`/`VisitPlanEntry` models (uuid + `HasPublicUuid`, `scopeVisibleTo`
+    mirroring `Prospect`); (3) service/controller/policy/routes — likely a
+    "get-or-create this week's plan" endpoint + add/remove entry endpoints;
+    (4) auto-link logic in `VisitService::start()` — when a visit starts and
+    matches a planned entry for that customer/day, set
+    `Visit.visit_plan_entry_id` automatically (**decided: this is automatic,
+    mobile-side only — no manual "tick" UI on web or mobile**); (5) the web
+    "My Week" planning screen (real add/remove, not view-only — see the split
+    note above) + `VisitPlanSeeder` demo data; (6) reconcile `PLAN.md`'s P4
+    row + this section once done, same as P2/P3.
+  - Mode: **DO** (per request, matches P2/P3's rhythm — build, stop at
+    checkpoints for verification).
 - Default mode: GUIDE (recent user-admin and CRM work was done in DO mode by
   request).
 - Open questions:
   - `new__plan.md` is the CRM product-vision doc — superseded-but-kept per
     PLAN.md's doc reconciliation, not auto-imported here (keeps session
-    context lean). Read it directly when a CRM phase needs its full spec.
+    context lean). Read it directly when a CRM phase needs its full spec —
+    its short "Weekly Coverage Plan" section (day → customer list, no
+    approvals in MVP) is P4's actual spec.
+  - `README.md` is noticeably stale (still describes the original poll-worker/
+    pandas architecture PLAN.md's own banner says was abandoned). Not fixed
+    yet — flagged during a P4 handoff-note update, not in scope for that
+    moment. Worth a dedicated pass.
 
 ## Conventions — always follow the stack's best practice
 
