@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProspectController;
+use App\Http\Controllers\Api\VisitController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -50,6 +51,17 @@ Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(functio
         ->middleware('permission:prospects.update');
     Route::delete('/prospects/{prospect}', [ProspectController::class, 'destroy'])
         ->middleware('permission:prospects.delete');
+
+    // Visits (CRM pivot P3). index is read by web (view/report) and, later,
+    // mobile; start/finish are the mobile field workflow -- web has no UI for
+    // them, but the endpoints aren't client-restricted, only permission- and
+    // ownership-gated. {visit} binds by uuid.
+    Route::get('/visits', [VisitController::class, 'index'])
+        ->middleware('permission:visits.view');
+    Route::post('/visits', [VisitController::class, 'start'])
+        ->middleware('permission:visits.create');
+    Route::patch('/visits/{visit}/finish', [VisitController::class, 'finish'])
+        ->middleware('permission:visits.update');
 
     Route::middleware(['permission:customers.create', 'permission:customers.update'])->group(function () {
         Route::post('/customers/preview', [CustomerController::class, 'preview']);
