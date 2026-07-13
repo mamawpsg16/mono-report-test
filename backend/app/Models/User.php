@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -47,4 +48,12 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'must_change_password' => 'boolean',
     ];
+
+    /**
+     * Customers this user owns as their assigned sales rep.
+     */
+    public function assignedCustomers(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'assigned_representative_id');
+    }
 }

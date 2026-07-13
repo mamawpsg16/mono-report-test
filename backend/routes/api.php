@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -33,12 +34,18 @@ Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(functio
     Route::post('/customers/ask', [CustomerController::class, 'ask'])
         ->middleware('permission:customers.view');
 
+    // The signed-in rep's own dashboard (their book of business). customers.view
+    // is the module gate; the data itself is scoped per-rep in the controller.
+    Route::get('/dashboard/my-book', [DashboardController::class, 'myBook'])
+        ->middleware('permission:customers.view');
+
     Route::middleware(['permission:customers.create', 'permission:customers.update'])->group(function () {
         Route::post('/customers/preview', [CustomerController::class, 'preview']);
         Route::post('/customers/confirm', [CustomerController::class, 'confirm']);
     });
 
     Route::middleware('permission:roles.manage')->group(function () {
+        Route::get('/dashboard/metrics', [DashboardController::class, 'metrics']);
         Route::get('/roles', [RoleController::class, 'index']);
         Route::post('/roles', [RoleController::class, 'store']);
         Route::put('/roles/{role}', [RoleController::class, 'update']);

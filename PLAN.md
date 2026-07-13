@@ -164,6 +164,13 @@ customer row and its embedding never drift out of sync.
   create/rename a role and set its permissions via a modules×actions checkbox
   grid; `RoleController` persists name + `syncPermissions`, guarding the
   last-admin invariant on the role-edit path.
+- **Dashboard live metrics** (`DashboardController`): the home board reads real
+  data, not placeholders. Admins (`roles.manage`) get org-wide counts + per-rep
+  coverage from `GET /api/dashboard/metrics`; reps get their own book
+  (`GET /api/dashboard/my-book`, scoped through `Customer::scopeVisibleTo` so it
+  matches the Customers list). The two **activity feeds stay placeholder** —
+  they need an events/`activities` table that doesn't exist yet (parked; see the
+  activity-log decision under "Roadmap" / `docs/backlog.md`).
 - **User invitations + account lifecycle** (R2 identity, pulled forward for
   admin users): creating a user emails a signed **48h set-password link** (a
   dedicated `invitations` password broker over `password_reset_tokens`) instead
