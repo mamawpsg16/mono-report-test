@@ -107,7 +107,16 @@ a new one is settled):
   the admin gate. Route model binding by `uuid`, never sequential ids
   (`HasPublicUuid`). Feature tests follow `CustomerScopeTest`'s shape
   (RefreshDatabase + seeders + plain `Model::create()` helpers, isolated
-  `dataforge_testing` DB).
+  `dataforge_testing` DB). **Soft delete for CRM business records** (decided
+  2026-07-14, P4): anything a rep creates/manages — `Prospect`, `Visit`,
+  `VisitPlan`/`VisitPlanEntry`, future `Task`s — gets `SoftDeletes` +
+  `deleted_by` (who removed it, for audit), not a real `DELETE`; a plain
+  `UNIQUE` on such a table needs a **partial index** (`WHERE deleted_at IS
+  NULL`) instead, or a soft-deleted row will wrongly block re-adding the same
+  data (see `visit_plan_entries_unique_live`). System/infra tables (`users`,
+  `roles`, `permissions`, `sessions`) stay hard-delete — not business records.
+  `VisitPlanEntry` has this now; `Prospect` still hard-deletes and needs
+  retrofitting (`docs/backlog.md`).
 - **Vue**: reuse the shared components/composables (`DatatableServer`,
   `AppModal`, `useConfirm`/`useToast`, `useAuth().can()`); buttons come from
   the **global** `.btn-*` classes in `App.vue`, never redefined per view.

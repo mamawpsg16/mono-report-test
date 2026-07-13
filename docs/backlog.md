@@ -118,13 +118,41 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
 
 ## From CRM pivot P2 (prospects), 2026-07-13
 
-- **Import↔CRM customer duplication** — since `customer_code` is now nullable
-  (ADR 0004), a CRM-created customer (converted prospect, no code) won't
-  auto-match a later CSV import row for the same real company on
-  `ON CONFLICT (customer_code)` → a duplicate customer that needs manual
-  reconciliation. Acceptable now; revisit with a customer merge/dedup feature
-  if it becomes a real operational pain.
-- **`customer_code` column display for CRM customers** — most CRM-created
-  customers will show a blank Customer Code on the list. Consider
-  de-emphasizing/hiding that column (or showing "—") for null codes; a
-  frontend display choice, no DB impact.
+- **Import↔CRM customer duplication** — a CRM-created customer (converted
+  prospect, manual add) gets an auto-generated, sequential code from
+  `customer_codes_seq` (ADR 0004 addendum, 2026-07-14), which never matches a
+  real spreadsheet code — so a later CSV import of that same real company
+  won't match on `ON CONFLICT (customer_code)` and creates a duplicate needing
+  manual reconciliation. Acceptable now; revisit with a customer merge/dedup
+  feature if it becomes a real operational pain.
+- **Prospects still hard-delete** — `ProspectController::destroy()` does a
+  real `DELETE`. P4 introduced soft-delete (+`deleted_by`) as the standing
+  convention for CRM business records (see `CLAUDE.md` Conventions); Prospects
+  predates that decision and needs retrofitting — add `deleted_at`/`deleted_by`
+  to `prospects`, `SoftDeletes` on the model, stamp the actor on delete, same
+  shape as `VisitPlanEntry`.
+
+## From CRM pivot P4 (visit plans), 2026-07-14
+
+- **Freeze plan entries once `planned_date <= today`** (decision, 2026-07-14).
+  For the planned-vs-actual coverage report to be un-gameable, a
+  `VisitPlanEntry` must become immutable the moment its planned day arrives —
+  the current day included, no same-day edits. Enforce **server-side** in
+  `VisitPlanService::addEntry`/`removeEntry` + `VisitPlanEntryPolicy` (a
+  UI-only freeze is bypassable by a direct API call), then reflect it in the
+  web UI: in the "This week" tab, days ≤ today render read-only (no add / no
+  ×  / no Clear), future days stay editable. Chose `<= today` over strictly-past
+  `< today` deliberately — errs toward report integrity at the cost of
+  same-day flexibility; a date-only model can't tell morning planning from
+  evening gaming. Builds on the soft-delete retention already shipped (removed
+  entries survive via `withTrashed()` for the report). **Blocked on / sequence
+  after:** the visit→entry auto-link (`Visit.visit_plan_entry_id`, not built)
+  and the report itself — nothing to protect until those exist, so this is
+  deferred, not dropped. Worth an ADR when built.
+- **Planned-vs-actual coverage report + visit→plan auto-link** — the auto-link
+  (`VisitService::start()` sets `Visit.visit_plan_entry_id` when a started
+  visit matches a planned entry for that customer/day) is the missing core of
+  P4 and the precondition for any "what was planned vs visited" report. Both
+  still unbuilt.
+- **No `VisitPlanSeeder`** — the plan screen has no demo data on a fresh DB,
+  unlike other CRM entities. Add one when convenient.
