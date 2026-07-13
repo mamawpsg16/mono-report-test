@@ -5,10 +5,39 @@ namespace App\Models;
 use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Customer extends Model
 {
     use HasFactory, HasPublicUuid;
+
+    /**
+     * CSV imports write customer rows directly via raw SQL (python-service),
+     * bypassing Eloquent entirely -- so this only ever fires for customers
+     * created inside Laravel (prospect conversion, manual add). Those have no
+     * spreadsheet code of their own; auto-generating one means the UI never
+     * shows a blank Customer Code, without touching imported rows' real codes.
+     *
+     * Pulls from a dedicated customer_codes_seq (not the id sequence) so it
+     * starts clean at 1 and only advances when a code is actually generated --
+     * not on every customer row, imported or not. Like any Postgres sequence
+     * it's non-transactional (a rolled-back test still consumes a value), so
+     * gaps over time are normal, not a bug. No prefix: if a real import code
+     * ever happened to collide with a generated one, the existing
+     * UNIQUE(customer_code) constraint throws loudly rather than silently
+     * duplicating -- an acceptable, unhandled edge case for now (see ADR 0004;
+     * this doesn't change the underlying import/CRM dedup tradeoff recorded
+     * there, just the blank-cell cosmetics).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Customer $customer) {
+            if (empty($customer->customer_code)) {
+                $next = DB::selectOne("SELECT nextval('customer_codes_seq') AS value")->value;
+                $customer->customer_code = str_pad($next, 10, '0', STR_PAD_LEFT);
+            }
+        });
+    }
 
     // `uuid` is set by HasPublicUuid / the DB default, never mass-assigned.
     protected $fillable = [

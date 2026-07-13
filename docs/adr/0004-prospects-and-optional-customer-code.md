@@ -80,3 +80,32 @@ none of these.
 - We reintroduce customer accounts / mobile login that genuinely require a
   non-null email, **or**
 - Import-vs-CRM duplication becomes a real operational pain.
+
+## Addendum (2026-07-14) — auto-generate customer_code on Eloquent creation
+
+`customer_code` stays nullable in the schema (unchanged), but `Customer` now
+auto-generates a 10-digit, zero-padded, sequential code (e.g. `0000000001`) in
+a `creating` hook whenever one isn't supplied — mirroring how `HasPublicUuid`
+sets `uuid`. The number comes from a **dedicated Postgres sequence**
+(`customer_codes_seq`, migration `2026_07_14_000004_create_customer_code_
+sequence`), not the row's own `id` — `id` is shared by every customer row
+including all ~1000 imported ones that don't need a generated code, so tying
+to it would start the count wherever that sequence happened to already be
+(observed: 8019, from accumulated test-suite churn) instead of a clean 1. The
+dedicated sequence only advances when a code is actually generated. Like any
+Postgres sequence it's non-transactional (a rolled-back test still consumes a
+value), so gaps over time are normal, not a bug, same as `id` itself. `creating`
+fires exactly once per row, before insert, so a later edit to an existing
+customer never regenerates or changes its code — stable for the row's
+lifetime, same as `uuid`. This only fires for rows created through Eloquent;
+`python-service` writes imported rows via raw SQL and is untouched, so
+imported rows keep their real spreadsheet code exactly as before. Effect: a
+CRM-created customer (future prospect-convert, manual add) never shows a blank
+Customer Code in the UI, and codes are strictly increasing with no
+collision-checking needed. No prefix: on the rare chance a real import code
+ever collides with a generated one, the existing `UNIQUE(customer_code)`
+constraint throws loudly rather than silently duplicating — acceptable,
+unhandled for now. This does **not** change the import/CRM
+duplicate-detection tradeoff above — a generated code still won't
+*proactively* match a real import code for the same company, so that risk is
+unchanged, just no longer visible as a blank cell.
