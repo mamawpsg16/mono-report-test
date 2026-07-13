@@ -13,6 +13,7 @@ const NotFound = () => import('@/views/authentication/NotFound.vue')
 // Secondary screens off the hot path, so lazy-load them.
 const ProspectsIndex = () => import('@/views/prospects/Index.vue')
 const VisitsIndex = () => import('@/views/visits/Index.vue')
+const WeeklyVisitPlanIndex = () => import('@/views/visit-plan/Index.vue')
 const UsersView = () => import('@/views/admin/UsersView.vue')
 const RolesView = () => import('@/views/admin/RolesView.vue')
 const router = createRouter({
@@ -67,6 +68,12 @@ const router = createRouter({
           name: 'visits',
           component: VisitsIndex,
           meta: { title: 'Visits', subtitle: 'Customer visit history from the field.', permission: 'visits.view' },
+        },
+        {
+          path: 'weekly-visit-plan',
+          name: 'weekly-visit-plan',
+          component: WeeklyVisitPlanIndex,
+          meta: { title: 'Weekly Visit Plan', subtitle: 'Plan which customers you\'ll visit each day.', permission: 'visits.view' },
         },
         {
           path: 'users',

@@ -72,6 +72,20 @@
             <span class="nav-text">Visits</span>
             <span class="nav-dot"></span>
           </router-link>
+          <router-link
+            v-if="auth.can('visits.view')"
+            to="/weekly-visit-plan"
+            class="nav-link"
+            exact-active-class="active"
+          >
+            <span class="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
+            </span>
+            <span class="nav-text">Weekly Plan</span>
+            <span class="nav-dot"></span>
+          </router-link>
         </div>
 
         <div v-if="auth.can('roles.manage')" class="nav-section">
