@@ -72,7 +72,6 @@
 
         <button
           class="day-add-trigger"
-          :disabled="customers.length === 0"
           @click="openPicker(day)"
         >
           + Add customer…
@@ -81,11 +80,6 @@
     </div>
 
     <p v-if="customersError" class="week-note week-note--error">{{ customersError }}</p>
-    <p v-else class="week-note">
-      Planning is a web feature — the field workflow (starting/finishing a
-      visit) happens on mobile and links back to a matching planned entry
-      automatically.
-    </p>
 
     <!-- Stays open across multiple picks (unlike a native <select>, which
          closes on every selection) so a rep can load up a day in one go. -->
@@ -108,8 +102,10 @@
             <span class="picker-name">{{ c.name }}</span>
             <span v-if="c.customer_code" class="picker-code">{{ c.customer_code }}</span>
           </button>
-          <div v-if="pickerOptions.length === 0" class="picker-empty">
-            {{ pickerSearch ? 'No matches' : 'All customers added for this day' }}
+          <div v-if="!pickerLoading && pickerOptions.length === 0" class="picker-empty">
+            <template v-if="pickerSearch">No matches</template>
+            <template v-else-if="pickerTotal > 0">All your customers are already planned for this day</template>
+            <template v-else>No customers assigned to you</template>
           </div>
         </div>
       </div>
@@ -118,7 +114,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { X, Trash2 } from '@lucide/vue'
 import api from '@/helpers/api'
 import { confirm } from '@/composables/useConfirm'
@@ -131,13 +127,15 @@ const toast = useToast()
 
 const plan = ref(null)
 const loading = ref(true)
-const customers = ref([])
 const customersError = ref('')
 const addingDate = ref(null)
 const removingId = ref(null)
 const clearingDay = ref(null) // day.date currently being bulk-cleared, or null
 const openPickerFor = ref(null) // day.date whose add-customer modal is open, or null
 const pickerSearch = ref('')
+const pickerResults = ref([]) // current server page of customers for the picker
+const pickerTotal = ref(0) // total matching the search server-side (may exceed the page)
+const pickerLoading = ref(false)
 // 'next' by default: reps open this to plan ahead, not to stare at a week
 // that's already half over. 'current' stays one tab away, still editable.
 const selectedWeek = ref('next')
@@ -166,20 +164,34 @@ function selectWeek(which) {
   fetchPlan()
 }
 
-async function fetchCustomers() {
+// Server-side search (not a client filter of a preloaded list): a rep's book
+// can exceed one page, so filtering a capped preload would silently hide
+// customers. Hits the same scoped /api/customers the Customers list uses.
+async function fetchPickerCustomers(term) {
+  pickerLoading.value = true
   try {
-    // A rep's own book is small (Customer::visibleTo scopes it server-side),
-    // so one bumped-per_page call covers it -- no need for a search picker.
-    const { data } = await api.get('/api/customers', { params: { per_page: 200 } })
-    customers.value = data.data
+    const { data } = await api.get('/api/customers', {
+      params: { search: term, per_page: 50 },
+    })
+    pickerResults.value = data.data
+    pickerTotal.value = data.total
   } catch {
     customersError.value = 'Could not load your customer list.'
+  } finally {
+    pickerLoading.value = false
   }
 }
 
+// Debounce the search so we fire one request after typing settles, not one per
+// keystroke -- mirrors the 500ms pattern the Customers/Users lists use.
+let pickerDebounce
+watch(pickerSearch, (term) => {
+  clearTimeout(pickerDebounce)
+  pickerDebounce = setTimeout(() => fetchPickerCustomers(term.trim()), 500)
+})
+
 onMounted(() => {
   fetchPlan()
-  fetchCustomers()
 })
 
 // --- week grid: 7 days from plan.week_start_date, entries grouped by day ---
@@ -210,31 +222,24 @@ const weekRangeLabel = computed(() => {
   return `${days.value[0].dateLabel} – ${days.value[6].dateLabel}`
 })
 
-// A customer already planned for a given day shouldn't be offered again for
-// that same day (the backend would reject it as a duplicate anyway).
-function availableFor(day) {
-  const plannedIds = new Set(day.entries.map((e) => e.customer_id))
-  return customers.value.filter((c) => !plannedIds.has(c.id))
-}
-
-// --- add-customer picker: opens next to whichever day's trigger was
-// clicked, stays open across multiple picks (a native <select> closes after
-// every selection), searchable by name or customer code ---
+// --- add-customer picker: opens per day, stays open across multiple picks (a
+// native <select> closes after every selection), server-side searchable by
+// name or customer code ---
 const openDay = computed(() => days.value.find((d) => d.date === openPickerFor.value) ?? null)
 
+// A customer already planned for this day shouldn't be offered again (the
+// backend would reject it as a duplicate anyway) -- filter the server page.
 const pickerOptions = computed(() => {
   if (!openDay.value) return []
-  const available = availableFor(openDay.value)
-  const q = pickerSearch.value.trim().toLowerCase()
-  if (!q) return available
-  return available.filter(
-    (c) => c.name.toLowerCase().includes(q) || (c.customer_code ?? '').toLowerCase().includes(q),
-  )
+  const plannedIds = new Set(openDay.value.entries.map((e) => e.customer_id))
+  return pickerResults.value.filter((c) => !plannedIds.has(c.id))
 })
 
 function openPicker(day) {
-  pickerSearch.value = ''
+  // search is already '' here (reset on last close), so this doesn't trip the
+  // debounced watch -- we fetch the initial page directly instead.
   openPickerFor.value = day.date
+  fetchPickerCustomers('')
 }
 
 function closePicker() {
@@ -501,7 +506,7 @@ async function clearDay(day) {
 .picker {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 4px;
 }
 /* AppSearchInput hard-codes width:360px; inside the sm modal it should fill */
@@ -512,6 +517,9 @@ async function clearDay(day) {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* size to content, capped so a long book scrolls instead of pushing the
+     modal off-screen. No min-height: forcing one leaves a dead void below the
+     content when there are few results, which reads as "off-centre". */
   max-height: 46vh;
   overflow-y: auto;
 }
@@ -549,6 +557,12 @@ async function clearDay(day) {
   color: var(--color-text-muted);
 }
 .picker-empty {
+  /* modest presence so a no-results modal isn't a cramped sliver, centred
+     rather than stretched tall with a void. */
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
   font-size: 12.5px;
   color: var(--color-text-muted);
