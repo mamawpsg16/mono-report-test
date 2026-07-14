@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProspectController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\VisitController;
 use App\Http\Controllers\Api\VisitPlanController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -74,6 +75,13 @@ Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(functio
     Route::delete('/visit-plan-entries/{entry}', [VisitPlanController::class, 'destroyEntry'])
         ->middleware('permission:visits.delete');
 
+    // Planned-vs-actual coverage report (CRM P4 payoff). my-week always
+    // means $request->user() -- no representative_id input exists on this
+    // route, by design (see ShowCoverageReportRequest). The team-wide
+    // version lives in the roles.manage group below, not here.
+    Route::get('/reports/coverage/my-week', [ReportController::class, 'myWeek'])
+        ->middleware('permission:visits.view');
+
     Route::middleware(['permission:customers.create', 'permission:customers.update'])->group(function () {
         Route::post('/customers/preview', [CustomerController::class, 'preview']);
         Route::post('/customers/confirm', [CustomerController::class, 'confirm']);
@@ -81,6 +89,7 @@ Route::middleware(['auth:sanctum', EnsurePasswordChanged::class])->group(functio
 
     Route::middleware('permission:roles.manage')->group(function () {
         Route::get('/dashboard/metrics', [DashboardController::class, 'metrics']);
+        Route::get('/reports/coverage/team', [ReportController::class, 'team']);
         Route::get('/roles', [RoleController::class, 'index']);
         Route::post('/roles', [RoleController::class, 'store']);
         Route::put('/roles/{role}', [RoleController::class, 'update']);

@@ -14,6 +14,7 @@ const NotFound = () => import('@/views/authentication/NotFound.vue')
 const ProspectsIndex = () => import('@/views/prospects/Index.vue')
 const VisitsIndex = () => import('@/views/visits/Index.vue')
 const WeeklyVisitPlanIndex = () => import('@/views/visit-plan/Index.vue')
+const CoverageReportIndex = () => import('@/views/reports/CoverageReport.vue')
 const UsersView = () => import('@/views/admin/UsersView.vue')
 const RolesView = () => import('@/views/admin/RolesView.vue')
 const router = createRouter({
@@ -74,6 +75,12 @@ const router = createRouter({
           name: 'weekly-visit-plan',
           component: WeeklyVisitPlanIndex,
           meta: { title: 'Weekly Visit Plan', subtitle: 'Plan which customers you\'ll visit each day.', permission: 'visits.view' },
+        },
+        {
+          path: 'coverage-report',
+          name: 'coverage-report',
+          component: CoverageReportIndex,
+          meta: { title: 'Coverage Report', subtitle: 'Planned visits vs. what actually happened.', permission: 'visits.view' },
         },
         {
           path: 'users',

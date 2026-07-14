@@ -86,6 +86,20 @@
             <span class="nav-text">Weekly Plan</span>
             <span class="nav-dot"></span>
           </router-link>
+          <router-link
+            v-if="auth.can('visits.view')"
+            to="/coverage-report"
+            class="nav-link"
+            exact-active-class="active"
+          >
+            <span class="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14"/>
+              </svg>
+            </span>
+            <span class="nav-text">Coverage Report</span>
+            <span class="nav-dot"></span>
+          </router-link>
         </div>
 
         <div v-if="auth.can('roles.manage')" class="nav-section">
