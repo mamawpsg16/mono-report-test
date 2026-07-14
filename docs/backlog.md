@@ -134,25 +134,18 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
 
 ## From CRM pivot P4 (visit plans), 2026-07-14
 
-- **Freeze plan entries once `planned_date <= today`** (decision, 2026-07-14).
-  For the planned-vs-actual coverage report to be un-gameable, a
-  `VisitPlanEntry` must become immutable the moment its planned day arrives —
-  the current day included, no same-day edits. Enforce **server-side** in
-  `VisitPlanService::addEntry`/`removeEntry` + `VisitPlanEntryPolicy` (a
-  UI-only freeze is bypassable by a direct API call), then reflect it in the
-  web UI: in the "This week" tab, days ≤ today render read-only (no add / no
-  ×  / no Clear), future days stay editable. Chose `<= today` over strictly-past
-  `< today` deliberately — errs toward report integrity at the cost of
-  same-day flexibility; a date-only model can't tell morning planning from
-  evening gaming. Builds on the soft-delete retention already shipped (removed
-  entries survive via `withTrashed()` for the report). **Blocked on / sequence
-  after:** the visit→entry auto-link (`Visit.visit_plan_entry_id`, not built)
-  and the report itself — nothing to protect until those exist, so this is
-  deferred, not dropped. Worth an ADR when built.
-- **Planned-vs-actual coverage report + visit→plan auto-link** — the auto-link
-  (`VisitService::start()` sets `Visit.visit_plan_entry_id` when a started
-  visit matches a planned entry for that customer/day) is the missing core of
-  P4 and the precondition for any "what was planned vs visited" report. Both
-  still unbuilt.
+- ~~**Freeze plan entries once `planned_date <= today`**~~ Resolved
+  2026-07-14 — enforced server-side in `VisitPlanService::addEntry`/
+  `removeEntry` + `VisitPlanEntryPolicy` (not just a disabled button), and
+  reflected in the web UI (past/today days render read-only). See PLAN.md's
+  P4 row.
+- ~~**Visit→plan auto-link**~~ Resolved 2026-07-14 — `VisitService::start()`
+  matches rep + customer + today's date against open `VisitPlanEntry` rows
+  and sets `Visit.visit_plan_entry_id` in the same insert, with app-level
+  dedup against double-claiming (ADR 0005; the DB-level unique constraint is
+  deferred — see ADR 0005's "Revisit when").
+- **Planned-vs-actual coverage report** — still unbuilt. This was the whole
+  point of the auto-link and the freeze (both now shipped); nothing consumes
+  them yet. The natural next CRM-adjacent milestone.
 - **No `VisitPlanSeeder`** — the plan screen has no demo data on a fresh DB,
   unlike other CRM entities. Add one when convenient.

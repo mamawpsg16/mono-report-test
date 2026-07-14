@@ -44,42 +44,41 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   bearer-token login (`POST /api/mobile/login`). Mail is synchronous (no queue).
 - **CRM pivot (2026-07-12)**: direction changed from the rewards/points
   roadmap (R3/R4, now superseded) to a **field-sales CRM** — see PLAN.md
-  "Roadmap: CRM pivot (P0–P5)". P0–P3 are **done**: P0 (doc reconciliation),
-  P1 (rep assignment on Customer), **P2 (Prospect)**, **P3 (Visit)**.
+  "Roadmap: CRM pivot (P0–P5)". P0–P4 are **done**: P0 (doc reconciliation),
+  P1 (rep assignment on Customer), **P2 (Prospect)**, **P3 (Visit)**,
+  **P4 (VisitPlan/VisitPlanEntry)**.
 - **Web-vs-mobile split (decided 2026-07-13, see PLAN.md's CRM roadmap
   intro)**: web = view · report · plan · admin; mobile (Flutter, not started)
   = field execution. P2/P3 shipped **backend full CRUD API + web view-only**;
   creating/editing prospects and starting/finishing visits are mobile-only
-  actions (API is ready, waiting on the mobile app). **P4 breaks this
+  actions (API is ready, waiting on the mobile app). **P4 broke this
   pattern on purpose** — per `new__plan.md`'s "Weekly Coverage Plan" section,
-  planning is a **web** feature, so P4's web screen gets real create/manage,
+  planning is a **web** feature, so P4's web screen got real create/manage,
   not just viewing.
-- **Next: P4 — VisitPlan / VisitPlanEntry — IN PROGRESS, schema-only,
-  picks up here:**
-  - Done: 3 migrations committed (`2026_07_14_000001_create_visit_plans_table`,
-    `..._000002_create_visit_plan_entries_table`,
-    `..._000003_add_visit_plan_entry_id_to_visits_table`) — `visit_plans`
-    (representative_id + week_start_date, unique per rep/week),
-    `visit_plan_entries` (visit_plan_id + customer_id + planned_date, unique
-    triple, day-only per the vision doc), and the `visits.visit_plan_entry_id`
-    FK deferred from P3 (now added since its target table exists — this
-    codebase never leaves a column FK-less).
-  - **NOT YET DONE, first steps next session**: (1) run
-    `docker compose exec backend php artisan migrate` and verify the 3 new
-    tables/columns with `\d visit_plans` / `\d visit_plan_entries` / `\d visits`
-    — **these migrations were never run or verified this session**; (2)
-    `VisitPlan`/`VisitPlanEntry` models (uuid + `HasPublicUuid`, `scopeVisibleTo`
-    mirroring `Prospect`); (3) service/controller/policy/routes — likely a
-    "get-or-create this week's plan" endpoint + add/remove entry endpoints;
-    (4) auto-link logic in `VisitService::start()` — when a visit starts and
-    matches a planned entry for that customer/day, set
-    `Visit.visit_plan_entry_id` automatically (**decided: this is automatic,
-    mobile-side only — no manual "tick" UI on web or mobile**); (5) the web
-    "My Week" planning screen (real add/remove, not view-only — see the split
-    note above) + `VisitPlanSeeder` demo data; (6) reconcile `PLAN.md`'s P4
-    row + this section once done, same as P2/P3.
-  - Mode: **DO** (per request, matches P2/P3's rhythm — build, stop at
-    checkpoints for verification).
+- **P4 — VisitPlan / VisitPlanEntry — DONE (2026-07-14).** Shipped, in
+  order: the 3 migrations (`visit_plans`, `visit_plan_entries`,
+  `visits.visit_plan_entry_id`); `VisitPlan`/`VisitPlanEntry` models
+  (uuid + `HasPublicUuid`, `scopeVisibleTo` mirroring `Prospect`);
+  `VisitPlanController`/`VisitPlanService` (get-or-create this week's plan +
+  add/remove-entry endpoints) + `VisitPlanEntryPolicy`; the web "My Week"
+  planning screen (`views/plans/`, real add/remove, a server-searched
+  customer picker — see ADR-worthy commit "Search the visit-plan customer
+  picker server-side"); the visit→plan **auto-link** in
+  `VisitService::start()` (rep + customer + today's date match, app-level
+  dedup against double-claiming — ADR 0005); and the **plan-entry freeze**
+  (`planned_date <= today` is immutable server-side in
+  `VisitPlanService`/`VisitPlanEntryPolicy`, not just a disabled button, so
+  the future planned-vs-actual report can't be gamed). `VisitPlanEntry` is
+  this codebase's first soft-deleted business record, which became the
+  standing CRM convention (see Conventions below). PLAN.md's P4 row
+  reconciled to match this. **Still open** (`docs/backlog.md`): no
+  `VisitPlanSeeder` demo data, and the planned-vs-actual coverage report
+  itself (the reason the auto-link and freeze exist) is unbuilt.
+- **Next**: no CRM phase is actively in progress. Candidates: the
+  planned-vs-actual coverage report (P4's stated payoff), `VisitPlanSeeder`,
+  P5 (`Customer::scopeVisibleTo` coverage-simplification cleanup), or
+  retrofitting soft-delete onto `Prospect` (`docs/backlog.md`). Not yet
+  chosen — pick one at the start of the next session.
 - Default mode: GUIDE (recent user-admin and CRM work was done in DO mode by
   request).
 - Open questions:
