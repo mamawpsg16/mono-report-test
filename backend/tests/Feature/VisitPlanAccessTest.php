@@ -54,6 +54,25 @@ class VisitPlanAccessTest extends TestCase
         ]);
     }
 
+    // Bypasses VisitPlanService::addEntry's freeze -- needed for the
+    // cannot-delete-a-frozen-entry tests, which need an entry planned for
+    // today/the past to exist in the first place (the API can't create one).
+    private function entryFor(User $representative, Customer $customer, string $plannedDate): VisitPlanEntry
+    {
+        $plan = VisitPlan::firstOrCreate([
+            'representative_id' => $representative->id,
+            'week_start_date' => Carbon::parse($plannedDate)->startOfWeek(Carbon::MONDAY)->toDateString(),
+        ]);
+
+        $entry = new VisitPlanEntry();
+        $entry->visit_plan_id = $plan->id;
+        $entry->customer_id = $customer->id;
+        $entry->planned_date = $plannedDate;
+        $entry->save();
+
+        return $entry;
+    }
+
     public function test_get_or_create_current_week_creates_a_plan_for_a_new_rep(): void
     {
         $rep = $this->user('rep@t.test', 'sales_representative');
@@ -101,7 +120,7 @@ class VisitPlanAccessTest extends TestCase
 
         $response = $this->actingAs($rep)->postJson('/api/visit-plan-entries', [
             'customer_id' => $customer->id,
-            'planned_date' => now()->toDateString(),
+            'planned_date' => now()->addDay()->toDateString(),
         ]);
 
         $response->assertCreated();
@@ -124,7 +143,7 @@ class VisitPlanAccessTest extends TestCase
     {
         $rep = $this->user('rep@t.test', 'sales_representative');
         $customer = $this->customerFor($rep, 'C1');
-        $date = now()->toDateString();
+        $date = now()->addDay()->toDateString();
 
         $this->actingAs($rep)->postJson('/api/visit-plan-entries', [
             'customer_id' => $customer->id,
@@ -145,7 +164,7 @@ class VisitPlanAccessTest extends TestCase
 
         $this->actingAs($repB)->postJson('/api/visit-plan-entries', [
             'customer_id' => $customer->id,
-            'planned_date' => now()->toDateString(),
+            'planned_date' => now()->addDay()->toDateString(),
         ])->assertCreated();
         $entry = VisitPlanEntry::first();
 
@@ -163,7 +182,7 @@ class VisitPlanAccessTest extends TestCase
 
         $this->actingAs($rep)->postJson('/api/visit-plan-entries', [
             'customer_id' => $customer->id,
-            'planned_date' => now()->toDateString(),
+            'planned_date' => now()->addDay()->toDateString(),
         ])->assertCreated();
         $entry = VisitPlanEntry::first();
 
@@ -186,7 +205,7 @@ class VisitPlanAccessTest extends TestCase
         // block this re-add against the old, soft-deleted row.
         $rep = $this->user('rep@t.test', 'sales_representative');
         $customer = $this->customerFor($rep, 'C1');
-        $date = now()->toDateString();
+        $date = now()->addDay()->toDateString();
 
         $this->actingAs($rep)->postJson('/api/visit-plan-entries', [
             'customer_id' => $customer->id,
@@ -205,5 +224,60 @@ class VisitPlanAccessTest extends TestCase
 
         $this->assertSame(1, VisitPlanEntry::where('customer_id', $customer->id)->count());
         $this->assertSame(2, VisitPlanEntry::withTrashed()->where('customer_id', $customer->id)->count());
+    }
+
+    public function test_cannot_add_an_entry_for_today(): void
+    {
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+
+        $this->actingAs($rep)->postJson('/api/visit-plan-entries', [
+            'customer_id' => $customer->id,
+            'planned_date' => now()->toDateString(),
+        ])->assertUnprocessable()->assertJsonValidationErrors('planned_date');
+
+        $this->assertDatabaseCount('visit_plan_entries', 0);
+    }
+
+    public function test_cannot_add_an_entry_for_a_past_day(): void
+    {
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+
+        $this->actingAs($rep)->postJson('/api/visit-plan-entries', [
+            'customer_id' => $customer->id,
+            'planned_date' => now()->subDay()->toDateString(),
+        ])->assertUnprocessable()->assertJsonValidationErrors('planned_date');
+
+        $this->assertDatabaseCount('visit_plan_entries', 0);
+    }
+
+    public function test_cannot_delete_an_entry_planned_for_today(): void
+    {
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+        $entry = $this->entryFor($rep, $customer, now()->toDateString());
+
+        $this->actingAs($rep)
+            ->deleteJson("/api/visit-plan-entries/{$entry->uuid}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('visit_plan_entries', ['id' => $entry->id, 'deleted_at' => null]);
+    }
+
+    public function test_admin_also_cannot_delete_an_entry_planned_for_today(): void
+    {
+        // The freeze protects report integrity, not row ownership -- no
+        // admin bypass (decided 2026-07-14).
+        $admin = $this->user('admin@t.test', 'admin');
+        $rep = $this->user('rep@t.test', 'sales_representative');
+        $customer = $this->customerFor($rep, 'C1');
+        $entry = $this->entryFor($rep, $customer, now()->toDateString());
+
+        $this->actingAs($admin)
+            ->deleteJson("/api/visit-plan-entries/{$entry->uuid}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('visit_plan_entries', ['id' => $entry->id, 'deleted_at' => null]);
     }
 }

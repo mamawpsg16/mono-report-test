@@ -45,7 +45,7 @@
             <span class="day-date">{{ day.dateLabel }}</span>
           </div>
           <button
-            v-if="day.entries.length"
+            v-if="day.entries.length && !isFrozen(day)"
             class="day-clear"
             :disabled="clearingDay === day.date"
             @click="clearDay(day)"
@@ -60,6 +60,7 @@
           <div v-for="entry in day.entries" :key="entry.uuid" class="entry-row">
             <span class="entry-name">{{ entry.customer?.name ?? '—' }}</span>
             <button
+              v-if="!isFrozen(day)"
               class="btn-icon is-danger"
               aria-label="Remove from plan"
               :disabled="removingId === entry.uuid"
@@ -71,11 +72,19 @@
         </div>
 
         <button
+          v-if="!isFrozen(day)"
           class="day-add-trigger"
           @click="openPicker(day)"
         >
           + Add customer…
         </button>
+        <!-- planned_date <= today is frozen server-side (VisitPlanService::
+             addEntry / VisitPlanEntryPolicy::delete) -- this is just the read-
+             only reflection of that, not the enforcement. -->
+        <p v-else class="day-locked">
+          <Lock :size="11" :stroke-width="2" />
+          {{ isPast(day) ? 'Past day — locked' : 'Locked — day has started' }}
+        </p>
       </div>
     </div>
 
@@ -115,7 +124,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { X, Trash2 } from '@lucide/vue'
+import { X, Trash2, Lock } from '@lucide/vue'
 import api from '@/helpers/api'
 import { confirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -222,6 +231,20 @@ const weekRangeLabel = computed(() => {
   return `${days.value[0].dateLabel} – ${days.value[6].dateLabel}`
 })
 
+// planned_date <= today is frozen server-side (VisitPlanService::addEntry /
+// VisitPlanEntryPolicy::delete, no bypass, admins included). This is only the
+// read-only reflection of that -- string comparison works because both sides
+// are fixed-width YYYY-MM-DD.
+const todayISO = new Date().toISOString().slice(0, 10)
+function isFrozen(day) {
+  return day.date <= todayISO
+}
+// Same freeze, but "day has started" only reads right for today -- a day
+// before today didn't just start, it's over. Split the copy accordingly.
+function isPast(day) {
+  return day.date < todayISO
+}
+
 // --- add-customer picker: opens per day, stays open across multiple picks (a
 // native <select> closes after every selection), server-side searchable by
 // name or customer code ---
@@ -257,7 +280,11 @@ async function addCustomer(date, customerId) {
     plan.value.entries.push(data)
     toast.success('Added to plan')
   } catch (err) {
-    toast.error(err.response?.data?.errors?.customer_id?.[0] || 'Could not add to plan')
+    // The freeze rejects under `planned_date`, duplicates under `customer_id`
+    // -- check both. In practice the UI hides the add button on frozen days,
+    // so this path is mostly a direct-API-call safety net, not a normal click.
+    const errors = err.response?.data?.errors
+    toast.error(errors?.customer_id?.[0] || errors?.planned_date?.[0] || 'Could not add to plan')
   } finally {
     addingDate.value = null
   }
@@ -501,6 +528,20 @@ async function clearDay(day) {
 .day-add-trigger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.day-locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 8px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--color-text-faint, var(--color-text-muted));
+  margin: 0;
 }
 
 .picker {

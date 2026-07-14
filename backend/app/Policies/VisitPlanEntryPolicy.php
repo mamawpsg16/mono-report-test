@@ -15,7 +15,13 @@ class VisitPlanEntryPolicy
 {
     public function delete(User $user, VisitPlanEntry $entry): bool
     {
-        return $user->can('visits.delete') && $this->accessible($user, $entry);
+        // planned_date <= today is frozen -- no bypass, admins included (see
+        // VisitPlanService::addEntry's matching guard on the add side). This
+        // protects report integrity, not row ownership, so it belongs here
+        // alongside the ownership check rather than as a separate rule.
+        return $user->can('visits.delete')
+            && $this->accessible($user, $entry)
+            && $entry->planned_date->isFuture();
     }
 
     /**

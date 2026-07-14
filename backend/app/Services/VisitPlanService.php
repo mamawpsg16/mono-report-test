@@ -35,6 +35,18 @@ class VisitPlanService
      */
     public function addEntry(User $representative, Customer $customer, Carbon $plannedDate): VisitPlanEntry
     {
+        // Frozen the moment its day arrives -- today included, no same-day
+        // edits (decided 2026-07-14; see ADR/backlog). planned_date is always
+        // midnight (date-only), so isFuture() against now() correctly treats
+        // today as not-future without separate date math. Applies to every
+        // role, admins included: this protects report integrity, not row
+        // ownership, so there's no bypass.
+        if (! $plannedDate->isFuture()) {
+            throw ValidationException::withMessages([
+                'planned_date' => ['You can\'t plan for a day that has already started. Plan ahead instead.'],
+            ]);
+        }
+
         $plan = $this->getOrCreateWeek($representative, $plannedDate);
 
         if (VisitPlanEntry::where('visit_plan_id', $plan->id)
