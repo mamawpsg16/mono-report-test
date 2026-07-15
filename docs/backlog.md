@@ -144,8 +144,9 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   and sets `Visit.visit_plan_entry_id` in the same insert, with app-level
   dedup against double-claiming (ADR 0005; the DB-level unique constraint is
   deferred — see ADR 0005's "Revisit when").
-- **Planned-vs-actual coverage report** — still unbuilt. This was the whole
-  point of the auto-link and the freeze (both now shipped); nothing consumes
-  them yet. The natural next CRM-adjacent milestone.
+- ~~**Planned-vs-actual coverage report**~~ Resolved 2026-07-15 —
+  `CoverageReportService` + `ReportController` (`GET /api/reports/coverage/
+  my-week` and `/team`), status derived on read (visited/missed/pending),
+  plus a web screen at `/coverage-report`. See PLAN.md's "What's built".
 - **No `VisitPlanSeeder`** — the plan screen has no demo data on a fresh DB,
   unlike other CRM entities. Add one when convenient.

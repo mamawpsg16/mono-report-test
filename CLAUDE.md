@@ -71,14 +71,30 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   the future planned-vs-actual report can't be gamed). `VisitPlanEntry` is
   this codebase's first soft-deleted business record, which became the
   standing CRM convention (see Conventions below). PLAN.md's P4 row
-  reconciled to match this. **Still open** (`docs/backlog.md`): no
-  `VisitPlanSeeder` demo data, and the planned-vs-actual coverage report
-  itself (the reason the auto-link and freeze exist) is unbuilt.
-- **Next**: no CRM phase is actively in progress. Candidates: the
-  planned-vs-actual coverage report (P4's stated payoff), `VisitPlanSeeder`,
-  P5 (`Customer::scopeVisibleTo` coverage-simplification cleanup), or
-  retrofitting soft-delete onto `Prospect` (`docs/backlog.md`). Not yet
-  chosen — pick one at the start of the next session.
+  reconciled to match this.
+- **Planned-vs-actual coverage report — DONE (2026-07-15).** The payoff P4's
+  auto-link and freeze existed for. `CoverageReportService` derives status
+  (visited/missed/pending) on read from `VisitPlanEntry`'s `visit` relation
+  and `planned_date` — no stored/denormalized status column, since "missed"
+  has no write event to trigger keeping one in sync without a scheduler this
+  project doesn't have. Two endpoints split by permission, not by a
+  client-supplied id (`GET /api/reports/coverage/my-week`, `visits.view`,
+  identity always from `$request->user()`; `/team`, `roles.manage`, every
+  rep) — closes the IDOR risk where a rep could otherwise pass another rep's
+  id and see their week. Web screen at `/coverage-report` (admin/rep branch,
+  same pattern as `dashboard/Index.vue`). 6 feature tests
+  (`CoverageReportTest`), including one that proves a spoofed
+  `representative_id` query param is silently ignored, not just rejected.
+  **Still open** (`docs/backlog.md`): no `VisitPlanSeeder` demo data; the
+  code review pass, understanding review, and journal/ADR write-up for this
+  milestone haven't happened yet.
+- **Next**: no CRM phase is actively in progress. Candidates: the code
+  review + journal/ADR close-out for the coverage report (the two decisions
+  worth an ADR: the endpoint-split-not-param IDOR fix, and computed-vs-
+  stored status), `VisitPlanSeeder`, P5 (`Customer::scopeVisibleTo`
+  coverage-simplification cleanup), or retrofitting soft-delete onto
+  `Prospect` (`docs/backlog.md`). Not yet chosen — pick one at the start of
+  the next session.
 - Default mode: GUIDE (recent user-admin and CRM work was done in DO mode by
   request).
 - Open questions:
