@@ -83,6 +83,21 @@ class VisitPlanAccessTest extends TestCase
         $this->assertDatabaseHas('visit_plans', ['representative_id' => $rep->id]);
     }
 
+    public function test_admin_cannot_get_or_create_a_plan_for_themselves(): void
+    {
+        // Admin holds visits.* like every permission, so the route gate
+        // alone isn't enough -- planning a visit is a field-rep action, and
+        // admin using the feature themselves would otherwise pollute the
+        // team coverage report with data that was never a real visit.
+        $admin = $this->user('admin@t.test', 'admin');
+
+        $this->actingAs($admin)
+            ->getJson('/api/visit-plans?week_start=' . now()->toDateString())
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('visit_plans', 0);
+    }
+
     public function test_calling_current_twice_does_not_create_a_duplicate_plan(): void
     {
         $rep = $this->user('rep@t.test', 'sales_representative');

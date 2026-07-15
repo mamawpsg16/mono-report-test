@@ -74,7 +74,10 @@ const router = createRouter({
           path: 'weekly-visit-plan',
           name: 'weekly-visit-plan',
           component: WeeklyVisitPlanIndex,
-          meta: { title: 'Weekly Visit Plan', subtitle: 'Plan which customers you\'ll visit each day.', permission: 'visits.view' },
+          // requiresSalesRep: visits.view alone doesn't distinguish a real
+          // field rep from admin (who holds every permission) -- planning is
+          // a rep-only action server-side (VisitPlanService's role guard).
+          meta: { title: 'Weekly Visit Plan', subtitle: 'Plan which customers you\'ll visit each day.', permission: 'visits.view', requiresSalesRep: true },
         },
         {
           path: 'coverage-report',
@@ -106,7 +109,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const { useAuth } = await import('../composables/useAuth')
-  const { isAuthenticated, checked, fetchUser, can, mustChangePassword } = useAuth()
+  const { isAuthenticated, checked, fetchUser, can, mustChangePassword, user } = useAuth()
 
   if (!checked.value) {
     await fetchUser()
@@ -132,6 +135,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.permission && !can(to.meta.permission)) {
+    return { name: 'home' }
+  }
+
+  if (to.meta.requiresSalesRep && !user.value?.is_sales_representative) {
     return { name: 'home' }
   }
 })

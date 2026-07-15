@@ -24,6 +24,11 @@ class UserResource extends JsonResource
         return [
             ...$this->resource->toArray(),
             'permissions' => $this->resource->getAllPermissions()->pluck('name'),
+            // Frontend gating for rep-only screens (Weekly Plan): admin holds
+            // visits.* like every permission, so a permission check alone
+            // can't distinguish "genuinely a field rep" from "admin browsing
+            // the feature" -- same reasoning as VisitPlanService's role guard.
+            'is_sales_representative' => $this->resource->hasRole('sales_representative'),
         ];
     }
 }

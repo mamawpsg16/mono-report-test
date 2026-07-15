@@ -18,6 +18,19 @@ class VisitPlanService
      */
     public function getOrCreateWeek(User $representative, ?Carbon $referenceDate = null): VisitPlan
     {
+        // Weekly planning is a field-sales action -- admin holds visits.*
+        // like every permission, so the route gate alone lets admin create
+        // plans of their own, which then pollute the team coverage report
+        // with data that was never a real field visit. This is the same
+        // "is this literally a field rep" domain check already used by
+        // app/Rules/SalesRepresentative.php and DashboardController's
+        // $activeReps -- a deliberate, precedented exception to "app code
+        // checks permissions, never roles" (PLAN.md's R1 golden rule),
+        // because no permission was ever meant to express this fact.
+        if (! $representative->hasRole('sales_representative')) {
+            abort(403, 'Only sales representatives have a weekly visit plan.');
+        }
+
         $weekStart = ($referenceDate ?? now())->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
 
         $plan = VisitPlan::firstOrCreate([

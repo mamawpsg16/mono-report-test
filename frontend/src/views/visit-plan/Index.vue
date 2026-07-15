@@ -5,6 +5,9 @@
       <span v-if="plan" class="week-range">{{ weekRangeLabel }}</span>
     </div>
 
+    <p v-if="accessError" class="week-note week-note--error">{{ accessError }}</p>
+
+    <template v-else>
     <div class="week-tabs">
       <button
         class="week-tab"
@@ -119,6 +122,7 @@
         </div>
       </div>
     </AppModal>
+    </template>
   </div>
 </template>
 
@@ -155,6 +159,8 @@ function weekStartFor(which) {
   return date.toISOString().slice(0, 10)
 }
 
+const accessError = ref('')
+
 async function fetchPlan() {
   loading.value = true
   try {
@@ -162,6 +168,15 @@ async function fetchPlan() {
       params: { week_start: weekStartFor(selectedWeek.value) },
     })
     plan.value = data
+  } catch (err) {
+    // Route/nav gating already keeps a non-rep from reaching this screen in
+    // the normal flow -- this is the defense-in-depth path for a role
+    // changing mid-session or a direct API call.
+    if (err.response?.status === 403) {
+      accessError.value = 'Only sales representatives have a weekly visit plan.'
+    } else {
+      throw err
+    }
   } finally {
     loading.value = false
   }

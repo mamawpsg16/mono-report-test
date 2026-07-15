@@ -73,7 +73,7 @@
             <span class="nav-dot"></span>
           </router-link>
           <router-link
-            v-if="auth.can('visits.view')"
+            v-if="auth.can('visits.view') && auth.user.value?.is_sales_representative"
             to="/weekly-visit-plan"
             class="nav-link"
             exact-active-class="active"

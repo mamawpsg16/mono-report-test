@@ -27,10 +27,18 @@ class CoverageReportService
      * Every rep's planned-vs-actual for the week, grouped by rep. Admin-only
      * by route gate (roles.manage) -- there is no per-row ownership check
      * inside this method because the route itself is the boundary.
+     *
+     * Scoped to the sales_representative role, not "anyone with a
+     * VisitPlan" -- an admin holds visits.* permissions too (same as every
+     * role) and can use the planning screen themselves, which would
+     * otherwise leak into a "team coverage" report as a phantom rep. Same
+     * idiom as DashboardController::metrics's $activeReps.
      */
     public function forTeam(Carbon $weekStart): array
     {
-        $entries = $this->entriesForWeek($weekStart)->get();
+        $entries = $this->entriesForWeek($weekStart)
+            ->whereHas('visitPlan.representative', fn ($query) => $query->role('sales_representative'))
+            ->get();
 
         return $entries
             ->groupBy(fn (VisitPlanEntry $entry) => $entry->visitPlan->representative_id)
