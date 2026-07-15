@@ -103,15 +103,13 @@ const tableSlotNames = computed(() => Object.keys(slots).filter((name) => name !
 .toolbar-actions { display: flex; align-items: center; gap: 8px; }
 
 @media (max-width: 640px) {
-  .card-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .toolbar-actions {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
+  /* Less outer padding reclaims real width on a phone; the header's
+     negative-margin full-bleed trick has to shrink by the same amount or it
+     drifts out of alignment with the reduced card padding. Title and actions
+     stay aligned on one row -- only wrap if the content genuinely doesn't
+     fit, don't force a stack unconditionally. */
+  .resource-card { padding: 14px; }
+  .card-header { margin: 0 -14px 14px; padding: 0 14px 14px; flex-wrap: wrap; gap: 10px; }
+  .toolbar-actions { flex-wrap: wrap; }
 }
 </style>

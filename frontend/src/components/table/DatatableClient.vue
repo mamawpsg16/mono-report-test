@@ -17,7 +17,7 @@
     <!-- :key forces a clean remount per page -- the underlying library
          keeps its own internal pagination state and doesn't reliably
          re-slice when handed a pre-paginated items array from outside. -->
-    <AppDataTable :key="page" :headers="headers" :items="pagedItems" hide-footer :loading="loading" :empty-message="emptyMessage">
+    <AppDataTable :key="page" :headers="headers" :items="pagedItems" hide-footer :loading="loading" :empty-message="emptyMessage" :body-row-class-name="bodyRowClassName">
       <template v-for="slot in tableSlotNames" #[slot]="scope">
         <slot :key="slot" :name="slot" v-bind="scope" />
       </template>
@@ -50,6 +50,8 @@ const props = defineProps({
   emptyMessage: { type: String, default: 'No data to display' },
   perPageOptions: { type: Array, default: () => [10, 20, 50, 100] },
   searchPlaceholder: { type: String, default: 'Search...' },
+  // Optional per-row class hook, forwarded to AppDataTable/vue3-easy-data-table.
+  bodyRowClassName: { type: [Function, String], default: undefined },
 })
 
 // forward every slot straight to AppDataTable (column templates etc) except
@@ -116,8 +118,14 @@ watch([() => props.items, searchText], () => {
 .toolbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
 @media (max-width: 640px) {
-  .card-header { flex-direction: column; align-items: stretch; }
-  .toolbar-actions { justify-content: center; flex-wrap: wrap; margin-left: 0; }
+  /* Less outer padding reclaims real width on a phone; the header's
+     negative-margin full-bleed trick has to shrink by the same amount or it
+     drifts out of alignment with the reduced card padding. Title and actions
+     stay aligned on one row -- only wrap if the content genuinely doesn't
+     fit, don't force a stack unconditionally. */
+  .static-table-card { padding: 12px; }
+  .card-header { margin: -12px -12px 12px; padding: 12px; flex-wrap: wrap; gap: 10px; }
+  .toolbar-actions { flex-wrap: wrap; margin-left: 0; }
 }
 
 .card-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

@@ -9,6 +9,7 @@
     :loading="loading"
     theme-color="#1d4ed8"
     :table-class-name="tableClassName"
+    :body-row-class-name="bodyRowClassName"
     :empty-message="emptyMessage"
     :items-selected="itemsSelected"
     @update:items-selected="$emit('update:itemsSelected', $event)"
@@ -34,6 +35,9 @@ const props = defineProps({
   emptyMessage: { type: String, default: 'No data to display' },
   // null = no checkbox column (library default); pass an array to enable selection
   itemsSelected: { type: Array, default: null },
+  // vue3-easy-data-table's per-row class hook: (item, rowIndex) => string.
+  // Optional -- undefined is a no-op, existing callers are unaffected.
+  bodyRowClassName: { type: [Function, String], default: undefined },
 })
 
 defineEmits(['update:itemsSelected'])
