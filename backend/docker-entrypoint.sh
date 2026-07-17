@@ -9,6 +9,15 @@ php artisan migrate --force
 echo "[entrypoint] seeding (idempotent)..."
 php artisan db:seed --force
 
+# storage/ is bind-mounted, so Spatie's permission cache file
+# (storage/framework/cache/data/...) survives every container crash and
+# rebuild. It's only flushed on Role writes (RoleSeeder), not User writes
+# (UserRoleSeeder) -- so a boot that crashes mid-seed can leave a stale but
+# still-valid (24h TTL) cache serving old permissions to real requests even
+# though the DB is already correct. Clear it every boot to close that gap.
+echo "[entrypoint] clearing cache..."
+php artisan cache:clear
+
 echo "[entrypoint] starting server..."
 # `php artisan serve` spawns the actual PHP built-in server as a *child*
 # process and only passes it a hardcoded handful of env vars (APP_ENV,

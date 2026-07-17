@@ -66,12 +66,9 @@ Then:
 - Mailpit (dev mail catcher — invitation/set-password emails land here,
   nothing leaves the machine) → <http://localhost:8025>
 
-First run needs the database migrated and seeded (roles/permissions, an
-admin login):
-
-```bash
-docker compose exec backend php artisan migrate --seed
-```
+`docker-entrypoint.sh` runs `migrate --force` and `db:seed --force`
+automatically on every `backend` container start (idempotent, safe to
+re-run) — no manual migrate/seed step needed on first run.
 
 Default seeded login (see `backend/database/seeders/` for the exact seeder):
 `admin@dataforge.test` / `password`.
@@ -82,6 +79,48 @@ Most of `.env.example` works unmodified for local dev. The one required
 value: `GROQ_API_KEY` (from console.groq.com/keys), needed only if you want
 the **Ask** (RAG Q&A) feature on the Customers page to work — the rest of
 the app runs fine without it.
+
+## Troubleshooting (first-time setup)
+
+- **`docker compose build` fails with `permission denied` reading
+  `backend/storage/app/uploads`.** The `backend` image has no `USER`
+  directive, so the container runs as root — any file it writes into that
+  bind-mounted folder (e.g. from the upload feature) ends up root-owned on
+  the *host*. The next build can't read it into the build context. Fix:
+  ```bash
+  sudo chown -R $USER:$USER backend/storage/app/uploads
+  ```
+- **Backend crashes on boot with `Trait "...HasRoles" not found` (or any
+  "class/trait not found" error) after you know the dependency is in
+  `composer.json`.** `docker-compose.yml` mounts `/var/www/html/vendor` as
+  an anonymous volume so `vendor/` doesn't get clobbered by the
+  `./backend:/var/www/html` bind mount. That volume survives rebuilds — so
+  if `composer.json`/`composer.lock` change after the volume already
+  exists, a plain `docker compose build` bakes the new `vendor/` into the
+  image, but the *running container* still mounts the old volume over it.
+  Same failure mode for `python-service` if a `pip` package goes missing
+  after a rebuild that didn't take. Fix — drop the stale volume, then
+  rebuild:
+  ```bash
+  docker compose rm -sf -v backend
+  docker compose up -d --build backend
+  ```
+- **`WARNING: database "dataforge" has a collation version mismatch`** in
+  backend logs on boot — harmless for local dev (glibc version drift
+  between the Postgres image and host). Ignore unless you hit
+  locale-sensitive sort bugs.
+- **A permission check 403s even though the DB/`tinker` shows the user has
+  it.** Spatie's permission cache lives in a file under
+  `storage/framework/cache/data`, which is bind-mounted and survives
+  container crashes/rebuilds — only `Role` writes flush it, not `User`
+  writes, so a boot that crashes mid-seed can leave stale cached
+  permissions serving real requests for up to 24h even after the DB is
+  fixed. `docker-entrypoint.sh` now clears the cache on every boot, so this
+  shouldn't recur; if it does anyway (e.g. after a change made without a
+  restart):
+  ```bash
+  docker compose exec backend php artisan cache:clear
+  ```
 
 ## Folders
 
