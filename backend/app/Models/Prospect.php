@@ -5,10 +5,11 @@ namespace App\Models;
 use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Prospect extends Model
 {
-    use HasFactory, HasPublicUuid;
+    use HasFactory, HasPublicUuid, SoftDeletes;
 
     // uuid is set by HasPublicUuid; created_by/converted_customer_id are set by
     // the controller/convert flow, never mass-assigned from request input.
@@ -26,6 +27,11 @@ class Prospect extends Model
     public function convertedCustomer()
     {
         return $this->belongsTo(Customer::class, 'converted_customer_id');
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     /**

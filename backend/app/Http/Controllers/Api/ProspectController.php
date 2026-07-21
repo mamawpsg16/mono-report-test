@@ -43,11 +43,11 @@ class ProspectController extends Controller
         );
     }
 
-    public function destroy(Prospect $prospect)
+    public function destroy(Request $request, Prospect $prospect)
     {
         $this->authorize('delete', $prospect);
 
-        $this->prospectService->delete($prospect);
+        $this->prospectService->delete($prospect, $request->user());
 
         return response()->json(['deleted' => true]);
     }

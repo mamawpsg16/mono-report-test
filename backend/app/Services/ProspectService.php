@@ -40,8 +40,15 @@ class ProspectService
         return $prospect->load('creator');
     }
 
-    public function delete(Prospect $prospect): void
+    /**
+     * Soft delete: the prospect disappears from lists but the row (and who
+     * removed it) is kept for history, not erased. delete() itself becomes a
+     * soft delete via Prospect's SoftDeletes trait.
+     */
+    public function delete(Prospect $prospect, User $actor): void
     {
+        $prospect->deleted_by = $actor->id;
+        $prospect->save();
         $prospect->delete();
     }
 }
