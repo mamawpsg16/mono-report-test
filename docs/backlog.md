@@ -150,3 +150,22 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   plus a web screen at `/coverage-report`. See PLAN.md's "What's built".
 - **No `VisitPlanSeeder`** — the plan screen has no demo data on a fresh DB,
   unlike other CRM entities. Add one when convenient.
+
+## From coverage-report code review, 2026-07-20
+
+- **Open visit counts as "visited"** — `CoverageReportService::statusFor`
+  treats any linked `visit` as `visited`, including one with `ended_at IS
+  NULL` (checked in, never checked out). A 2-second check-in on a past-dated
+  entry reads "visited" forever — a gaming vector on the anti-gaming report.
+  Decide product intent: if a started-but-unfinished visit isn't coverage,
+  add `whereNotNull('ended_at')` to the `visit` relation used here (or the
+  `statusFor` check) and pin it with a test — `linkVisitTo` always sets
+  `ended_at` today, so the open-visit case is currently untested either way.
+- **No `pending_count` in the summary payload** — `summarize()` returns
+  `planned_count`/`visited_count`/`missed_count` but not `pending_count`;
+  the web derives it. Either expose all three or none (let the client count
+  `entries`). Consistency nit, not a bug.
+- **`week_start` is unbounded** — `ShowCoverageReportRequest` validates
+  `nullable|date` with no floor/ceiling, so `year 3000` reaches the
+  `whereBetween`. Harmless today (empty result, cheap query); add a sane
+  range bound if this ever drives an expensive aggregate.

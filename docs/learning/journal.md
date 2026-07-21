@@ -89,3 +89,35 @@
   the dialog own the loading spinner and keep itself open to show a thrown
   server error (e.g. the last-admin 422). That's how "loading while saving"
   lives on the dialog, not the page button.
+
+## CRM P4 payoff — planned-vs-actual coverage report
+
+- **IDOR closed by removing the input, not guarding it** — instead of one
+  `/reports/coverage?representative_id=X` endpoint that validates the caller
+  owns `X`, there are two: `my-week` (identity = `$request->user()`, never
+  client input) and `team` (all reps, `roles.manage`-gated). The forgeable
+  param simply doesn't exist, so there's no guard to forget on a future
+  refactor — "remove the capability beats policing it." A regression test
+  proves a crafted `?representative_id=` is a silent no-op, not a 403. See
+  `ReportController`, `ShowCoverageReportRequest`, ADR 0006.
+- **Computed-on-read status because `missed` has no write event** —
+  `pending` (entry created) and `visited` (`VisitService::start` auto-link)
+  each have a moment when code runs to set them; `missed` happens when a day
+  passes unvisited, which nothing observes. Keeping a stored column correct
+  would need a nightly scheduler this project doesn't have, so it would go
+  stale — and a stale column makes the anti-gaming report gameable by doing
+  nothing. Deriving `planned_date < today` on read has zero drift and needs
+  no infra. Trade-off: status isn't SQL-queryable/sortable. See
+  `CoverageReportService::statusFor`, ADR 0007.
+- **The route gate is the authorization boundary, not a policy** —
+  `forTeam` has no per-row ownership check inside it because `roles.manage`
+  on the route already decided who may call it; adding a policy would be
+  belt-on-belt. Contrast the per-row `scopeVisibleTo`/policy pattern used
+  where the *same* endpoint serves data of differing ownership — here the
+  split into two endpoints already did that job. See `ReportController::team`.
+- **"Team = reps, not anyone with a plan"** — `forTeam` scopes to the
+  `sales_representative` role, because an admin holds `visits.*` too and can
+  use the planning screen, which would otherwise surface the admin as a
+  phantom rep in a team-coverage report. Same idiom as
+  `DashboardController::metrics`'s `$activeReps`. See
+  `CoverageReportService::forTeam`.

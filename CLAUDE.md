@@ -85,16 +85,20 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   same pattern as `dashboard/Index.vue`). 6 feature tests
   (`CoverageReportTest`), including one that proves a spoofed
   `representative_id` query param is silently ignored, not just rejected.
-  **Still open** (`docs/backlog.md`): no `VisitPlanSeeder` demo data; the
-  code review pass, understanding review, and journal/ADR write-up for this
-  milestone haven't happened yet.
-- **Next**: no CRM phase is actively in progress. Candidates: the code
-  review + journal/ADR close-out for the coverage report (the two decisions
-  worth an ADR: the endpoint-split-not-param IDOR fix, and computed-vs-
-  stored status), `VisitPlanSeeder`, P5 (`Customer::scopeVisibleTo`
-  coverage-simplification cleanup), or retrofitting soft-delete onto
-  `Prospect` (`docs/backlog.md`). Not yet chosen — pick one at the start of
-  the next session.
+  **Close-out DONE (2026-07-20)**: code review, understanding review, and
+  the write-up all happened — ADR 0006 (IDOR endpoint split) + ADR 0007
+  (computed-vs-stored status) + a journal section. The review surfaced three
+  parked items in `docs/backlog.md` ("From coverage-report code review"): an
+  open visit (`ended_at IS NULL`) counting as "visited" — a real gaming
+  vector to decide on — plus the missing `pending_count` and an unbounded
+  `week_start`. **Still open**: no `VisitPlanSeeder` demo data.
+- **Next**: no CRM phase is actively in progress. The coverage-report
+  close-out is done (2026-07-20). Candidates: the open-visit "visited"
+  gaming-vector fix (`docs/backlog.md`, from the code review — smallest, and
+  it hardens the anti-gaming report), `VisitPlanSeeder`, P5
+  (`Customer::scopeVisibleTo` coverage-simplification cleanup), or
+  retrofitting soft-delete onto `Prospect`. Not yet chosen — pick one at the
+  start of the next session.
 - Default mode: GUIDE (recent user-admin and CRM work was done in DO mode by
   request).
 - Open questions:
