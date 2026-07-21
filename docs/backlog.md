@@ -125,12 +125,11 @@ Parked ideas from reviews and YAGNI calls. One line each: what, why parked.
   won't match on `ON CONFLICT (customer_code)` and creates a duplicate needing
   manual reconciliation. Acceptable now; revisit with a customer merge/dedup
   feature if it becomes a real operational pain.
-- **Prospects still hard-delete** — `ProspectController::destroy()` does a
-  real `DELETE`. P4 introduced soft-delete (+`deleted_by`) as the standing
-  convention for CRM business records (see `CLAUDE.md` Conventions); Prospects
-  predates that decision and needs retrofitting — add `deleted_at`/`deleted_by`
-  to `prospects`, `SoftDeletes` on the model, stamp the actor on delete, same
-  shape as `VisitPlanEntry`.
+- ~~**Prospects still hard-delete**~~ **Done 2026-07-21.** Retrofitted to
+  soft-delete (migration `2026_07_21_000001`, `SoftDeletes` on the model,
+  `deleted_by` stamped in `ProspectService::delete()`), same shape as
+  `VisitPlanEntry`. No partial-unique-index swap needed — `prospects` has no
+  plain unique constraint besides `uuid`.
 
 ## From CRM pivot P4 (visit plans), 2026-07-14
 

@@ -93,12 +93,12 @@ the kit elsewhere (e.g. `~/mentor-kit/`), the @imports are what load them.
   vector to decide on — plus the missing `pending_count` and an unbounded
   `week_start`. **Still open**: no `VisitPlanSeeder` demo data.
 - **Next**: no CRM phase is actively in progress. The coverage-report
-  close-out is done (2026-07-20). Candidates: the open-visit "visited"
-  gaming-vector fix (`docs/backlog.md`, from the code review — smallest, and
-  it hardens the anti-gaming report), `VisitPlanSeeder`, P5
-  (`Customer::scopeVisibleTo` coverage-simplification cleanup), or
-  retrofitting soft-delete onto `Prospect`. Not yet chosen — pick one at the
-  start of the next session.
+  close-out is done (2026-07-20); `Prospect` soft-delete retrofit done
+  (2026-07-21). Candidates: the open-visit "visited" gaming-vector fix
+  (`docs/backlog.md`, from the code review — smallest, and it hardens the
+  anti-gaming report), `VisitPlanSeeder`, or P5 (`Customer::scopeVisibleTo`
+  coverage-simplification cleanup). Not yet chosen — pick one at the start
+  of the next session.
 - Default mode: GUIDE (recent user-admin and CRM work was done in DO mode by
   request).
 - Open questions:
@@ -134,8 +134,9 @@ a new one is settled):
   NULL`) instead, or a soft-deleted row will wrongly block re-adding the same
   data (see `visit_plan_entries_unique_live`). System/infra tables (`users`,
   `roles`, `permissions`, `sessions`) stay hard-delete — not business records.
-  `VisitPlanEntry` has this now; `Prospect` still hard-deletes and needs
-  retrofitting (`docs/backlog.md`).
+  `VisitPlanEntry` and `Prospect` both have this now (Prospect retrofitted
+  2026-07-21); `Visit`, `VisitPlan`, and future `Task`s still hard-delete
+  (no user-facing delete path exercises them yet — retrofit when one does).
 - **Vue**: reuse the shared components/composables (`DatatableServer`,
   `AppModal`, `useConfirm`/`useToast`, `useAuth().can()`); buttons come from
   the **global** `.btn-*` classes in `App.vue`, never redefined per view.
